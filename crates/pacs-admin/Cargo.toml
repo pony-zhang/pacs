@@ -11,7 +11,13 @@ pacs-core = { path = "../pacs-core" }
 
 tokio = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
 config = { workspace = true }
 prometheus = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+regex = "1.10"
+async-trait = { workspace = true }
+toml = "0.8"
