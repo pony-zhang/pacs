@@ -41,7 +41,7 @@ pub struct Study {
 }
 
 /// 检查状态
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum StudyStatus {
     Scheduled,    // 已预约
     InProgress,   // 检查中

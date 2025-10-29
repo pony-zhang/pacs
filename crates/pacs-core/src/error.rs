@@ -40,6 +40,15 @@ pub enum PacsError {
 
     #[error("IO错误: {0}")]
     Io(String),
+
+    #[error("工作流错误: {0}")]
+    Workflow(String),
+
+    #[error("路由错误: {0}")]
+    RoutingError(String),
+
+    #[error("无效状态转换: 从 {from} 到 {event}")]
+    InvalidStateTransition { from: String, event: String },
 }
 
 /// PACS系统统一结果类型
