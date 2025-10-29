@@ -14,6 +14,9 @@ pub enum PacsError {
     #[error("DICOM处理错误: {0}")]
     Dicom(String),
 
+    #[error("DICOM解析错误: {0}")]
+    DicomParseError(String),
+
     #[error("存储错误: {0}")]
     Storage(String),
 

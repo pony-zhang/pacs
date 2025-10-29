@@ -19,6 +19,10 @@ uuid = { workspace = true }
 
 # DICOM 处理
 dicom = { workspace = true }
+dicom-core = "0.9"
+dicom-encoding = "0.9"
+dicom-transfer-syntax-registry = "0.9"
+dicom-dictionary-std = "0.9"
 
 tokio-util = { version = "0.7", features = ["codec"] }
 bytes = "1.0"

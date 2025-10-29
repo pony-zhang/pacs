@@ -7,6 +7,11 @@ pub mod services;
 pub mod association;
 pub mod dimse;
 pub mod parser;
+pub mod transfer_syntax;
+pub mod validator;
 
 pub use server::{DicomServer, DicomServerConfig};
 pub use services::*;
+pub use parser::{DicomParser, ParsedDicomObject};
+pub use transfer_syntax::{TransferSyntaxManager, TransferSyntaxInfo};
+pub use validator::{DicomValidator, ValidationResult};
