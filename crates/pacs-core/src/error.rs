@@ -34,6 +34,12 @@ pub enum PacsError {
 
     #[error("系统内部错误: {0}")]
     Internal(String),
+
+    #[error("资源未找到: {0}")]
+    NotFound(String),
+
+    #[error("IO错误: {0}")]
+    Io(String),
 }
 
 /// PACS系统统一结果类型
