@@ -87,15 +87,26 @@ publish = false
 [dependencies]
 pacs-core = { path = "crates/pacs-core" }
 pacs-workflow = { path = "crates/pacs-workflow" }
+pacs-integration = { path = "crates/pacs-integration" }
 
 tokio = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 uuid = { workspace = true }
 chrono = { workspace = true }
+reqwest = { version = "0.11", features = ["json"] }
 
 [[example]]
 name = "workflow_demo"
 path = "examples/workflow_demo.rs"
+
+[[example]]
+name = "integration_demo"
+path = "examples/integration_demo.rs"
+
+[[example]]
+name = "integration_simple"
+path = "examples/integration_simple.rs"
