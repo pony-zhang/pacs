@@ -1,0 +1,17 @@
+[package]
+name = "pacs-admin"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+pacs-core = { path = "../pacs-core" }
+
+tokio = { workspace = true }
+serde = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+config = { workspace = true }
+prometheus = { workspace = true }

@@ -1,0 +1,25 @@
+[package]
+name = "pacs-dicom"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+pacs-core = { path = "../pacs-core" }
+
+tokio = { workspace = true }
+serde = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+
+# DICOM 处理
+dicom = { workspace = true }
+
+tokio-util = { version = "0.7", features = ["codec"] }
+bytes = "1.0"
+async-trait = { workspace = true }

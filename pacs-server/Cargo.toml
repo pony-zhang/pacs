@@ -1,0 +1,24 @@
+[package]
+name = "pacs-server"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "pacs-server"
+path = "src/main.rs"
+
+[dependencies]
+pacs-core = { path = "../crates/pacs-core" }
+pacs-dicom = { path = "../crates/pacs-dicom" }
+
+tokio = { workspace = true }
+serde = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+clap = { workspace = true }
+
+config = { workspace = true }

@@ -162,3 +162,8 @@ venv.bak/
 .prettierrc*
 .eslintrc*
 .stylelintrc*
+
+
+# Added by cargo
+
+/target
