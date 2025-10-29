@@ -47,7 +47,13 @@ tower-http = { version = "0.5", features = ["cors", "trace"] }
 sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono"] }
 
 # 存储
-object_store = "0.9"
+object_store = { version = "0.9", features = ["aws"] }
+
+# 压缩
+flate2 = "1.0"
+
+# 哈希
+sha2 = "0.10"
 
 # 配置
 config = "0.14"

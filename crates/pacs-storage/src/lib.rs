@@ -4,5 +4,12 @@
 
 pub mod storage;
 pub mod archive;
+pub mod lifecycle;
+pub mod backup;
+pub mod monitoring;
 
 pub use storage::*;
+pub use archive::*;
+pub use lifecycle::*;
+pub use backup::*;
+pub use monitoring::*;
