@@ -72,3 +72,30 @@ clap = { version = "4.0", features = ["derive"] }
 
 # 异步trait
 async-trait = "0.1"
+
+# 根项目配置（用于示例和演示）
+[package]
+name = "pacs"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "医学影像存档与通信系统 (PACS)"
+publish = false
+
+[dependencies]
+pacs-core = { path = "crates/pacs-core" }
+pacs-workflow = { path = "crates/pacs-workflow" }
+
+tokio = { workspace = true }
+serde = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+
+[[example]]
+name = "workflow_demo"
+path = "examples/workflow_demo.rs"

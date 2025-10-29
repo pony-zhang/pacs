@@ -9,7 +9,6 @@ use crate::{
     worklist::{WorkListManager, WorkItemPriority, WorkItemStatus},
 };
 use pacs_core::{Result, Study, StudyStatus};
-use std::collections::HashMap;
 use uuid::Uuid;
 
 /// 工作流引擎
@@ -262,7 +261,7 @@ impl WorkflowEngine {
     /// 更新工作项状态
     pub fn update_work_item_status(&mut self, work_item_id: Uuid, status: WorkItemStatus) -> Result<()> {
         // 获取工作项信息
-        let radiologist_id = if let Some(work_item) = self.worklist_manager.get_work_item(work_item_id) {
+        if let Some(work_item) = self.worklist_manager.get_work_item(work_item_id) {
             let old_status = work_item.status.clone();
             let radiologist_id = work_item.radiologist_id;
 

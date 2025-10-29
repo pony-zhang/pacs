@@ -194,9 +194,10 @@ impl CriticalValueProcessor {
     /// 处理危急值事件
     fn process_critical_value_event(&mut self, event: &CriticalValueEvent) -> Result<()> {
         // 找到匹配的策略
-        let matching_policies: Vec<_> = self.policies
+        let matching_policies: Vec<CriticalValuePolicy> = self.policies
             .iter()
             .filter(|policy| policy.is_active && policy.value_types.contains(&event.value_type))
+            .cloned()
             .collect();
 
         if matching_policies.is_empty() {
@@ -382,7 +383,7 @@ impl CriticalValueProcessor {
                         let time_since_detection = now.signed_duration_since(event.detected_at);
                         let minutes_passed = time_since_detection.num_minutes();
 
-                        if minutes_passed >= escalation_rule.trigger_after_minutes {
+                        if minutes_passed >= escalation_rule.trigger_after_minutes as i64 {
                             if self.should_escalate(notifications, &escalation_rule.condition) {
                                 escalations.push(escalation_rule.action.clone());
                             }

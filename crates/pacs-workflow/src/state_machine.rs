@@ -5,7 +5,6 @@
 use pacs_core::{Result, PacsError, StudyStatus};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use uuid::Uuid;
 
 /// 检查状态转换事件
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]

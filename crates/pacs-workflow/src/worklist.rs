@@ -22,7 +22,7 @@ pub struct WorkItem {
 }
 
 /// 工作项状态
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum WorkItemStatus {
     Pending,        // 待处理
     InProgress,     // 处理中
