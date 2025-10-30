@@ -1,15 +1,15 @@
 //! 备份和恢复机制
 
+use crate::storage::{StorageConfig, StorageManager};
+use chrono::{DateTime, Duration, Utc};
 use pacs_core::{PacsError, Result};
-use crate::storage::{StorageManager, StorageConfig};
-use chrono::{DateTime, Utc, Duration};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
-use tokio::time::{interval, sleep};
-use tracing::{info, warn, error, debug};
-use sha2::{Sha256, Digest};
 use std::fs::File;
 use std::io::Read;
+use tokio::time::{interval, sleep};
+use tracing::{debug, error, info, warn};
 
 /// 备份类型
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -157,8 +157,14 @@ impl BackupManager {
     }
 
     /// 执行备份
-    pub async fn execute_backup(&mut self, config_name: &str, backup_type: BackupType) -> Result<String> {
-        let config = self.configs.get(config_name)
+    pub async fn execute_backup(
+        &mut self,
+        config_name: &str,
+        backup_type: BackupType,
+    ) -> Result<String> {
+        let config = self
+            .configs
+            .get(config_name)
             .ok_or_else(|| PacsError::configuration("Backup configuration not found"))?;
 
         let backup_id = format!("backup_{}_{}", config_name, Utc::now().timestamp());
@@ -177,7 +183,8 @@ impl BackupManager {
             file_manifest: Vec::new(),
         };
 
-        self.active_backups.insert(backup_id.clone(), backup_info.clone());
+        self.active_backups
+            .insert(backup_id.clone(), backup_info.clone());
 
         info!("Starting backup: {} ({})", backup_id, backup_type);
 
@@ -189,8 +196,10 @@ impl BackupManager {
 
         let (file_count, total_size, file_manifest) = match result {
             Ok((count, size, manifest)) => {
-                info!("Backup completed successfully: {} (files: {}, size: {} bytes)",
-                      backup_id, count, size);
+                info!(
+                    "Backup completed successfully: {} (files: {}, size: {} bytes)",
+                    backup_id, count, size
+                );
                 (count, size, manifest)
             }
             Err(e) => {
@@ -222,7 +231,11 @@ impl BackupManager {
     }
 
     /// 执行完整备份
-    async fn execute_full_backup(&mut self, backup_id: &str, config: &BackupConfig) -> Result<(u64, u64, Vec<BackupFileEntry>)> {
+    async fn execute_full_backup(
+        &mut self,
+        backup_id: &str,
+        config: &BackupConfig,
+    ) -> Result<(u64, u64, Vec<BackupFileEntry>)> {
         let source_storage = self.get_storage_manager(&config.source_storage).await?;
         let target_storage = self.get_storage_manager(&config.target_storage).await?;
 
@@ -242,17 +255,27 @@ impl BackupManager {
     }
 
     /// 执行增量备份
-    async fn execute_incremental_backup(&mut self, backup_id: &str, config: &BackupConfig) -> Result<(u64, u64, Vec<BackupFileEntry>)> {
+    async fn execute_incremental_backup(
+        &mut self,
+        backup_id: &str,
+        config: &BackupConfig,
+    ) -> Result<(u64, u64, Vec<BackupFileEntry>)> {
         // 找到最近的基础备份
-        let base_backup = self.find_latest_backup(&config.config_name, BackupType::Full)
+        let base_backup = self
+            .find_latest_backup(&config.config_name, BackupType::Full)
             .or_else(|| self.find_latest_backup(&config.config_name, BackupType::Differential));
 
         if base_backup.is_none() {
-            return Err(PacsError::configuration("No base backup found for incremental backup"));
+            return Err(PacsError::configuration(
+                "No base backup found for incremental backup",
+            ));
         }
 
-        info!("Executing incremental backup: {} (base: {:?})",
-              backup_id, base_backup.as_ref().map(|b| &b.id));
+        info!(
+            "Executing incremental backup: {} (base: {:?})",
+            backup_id,
+            base_backup.as_ref().map(|b| &b.id)
+        );
 
         // TODO: 实现增量备份逻辑
         // 比较文件修改时间和哈希值，只备份变更的文件
@@ -261,16 +284,25 @@ impl BackupManager {
     }
 
     /// 执行差异备份
-    async fn execute_differential_backup(&mut self, backup_id: &str, config: &BackupConfig) -> Result<(u64, u64, Vec<BackupFileEntry>)> {
+    async fn execute_differential_backup(
+        &mut self,
+        backup_id: &str,
+        config: &BackupConfig,
+    ) -> Result<(u64, u64, Vec<BackupFileEntry>)> {
         // 找到最近的基础备份
         let base_backup = self.find_latest_backup(&config.config_name, BackupType::Full);
 
         if base_backup.is_none() {
-            return Err(PacsError::configuration("No full backup found for differential backup"));
+            return Err(PacsError::configuration(
+                "No full backup found for differential backup",
+            ));
         }
 
-        info!("Executing differential backup: {} (base: {:?})",
-              backup_id, base_backup.as_ref().map(|b| &b.id));
+        info!(
+            "Executing differential backup: {} (base: {:?})",
+            backup_id,
+            base_backup.as_ref().map(|b| &b.id)
+        );
 
         // TODO: 实现差异备份逻辑
         // 备份自上次完整备份以来的所有变更文件
@@ -280,15 +312,19 @@ impl BackupManager {
 
     /// 恢复备份
     pub async fn restore_backup(&mut self, backup_id: &str, target_path: &str) -> Result<String> {
-        let backup_info = self.backup_history.iter()
+        let backup_info = self
+            .backup_history
+            .iter()
             .find(|b| b.id == backup_id)
             .or_else(|| self.active_backups.get(backup_id))
             .ok_or_else(|| PacsError::configuration("Backup not found"))?;
 
         let restore_id = format!("restore_{}_{}", backup_id, Utc::now().timestamp());
 
-        info!("Starting restore: {} from backup {} to {}",
-              restore_id, backup_id, target_path);
+        info!(
+            "Starting restore: {} from backup {} to {}",
+            restore_id, backup_id, target_path
+        );
 
         let mut file_count = 0u64;
         let mut total_size = 0u64;
@@ -296,19 +332,26 @@ impl BackupManager {
         // 恢复文件清单中的所有文件
         for file_entry in &backup_info.file_manifest {
             if file_entry.backup_status != BackupStatus::Completed {
-                warn!("Skipping file with failed backup status: {}", file_entry.original_path);
+                warn!(
+                    "Skipping file with failed backup status: {}",
+                    file_entry.original_path
+                );
                 continue;
             }
 
             // 从备份存储读取文件
-            let backup_storage = self.get_storage_manager(&self.configs[&backup_info.config_name].target_storage).await?;
+            let backup_storage = self
+                .get_storage_manager(&self.configs[&backup_info.config_name].target_storage)
+                .await?;
             let file_data = backup_storage.get_file(&file_entry.backup_path).await?;
 
             // 计算文件哈希以验证完整性
             let hash = calculate_file_hash(&file_data);
             if hash != file_entry.hash {
-                error!("File hash mismatch for {} (expected: {}, actual: {})",
-                       file_entry.original_path, file_entry.hash, hash);
+                error!(
+                    "File hash mismatch for {} (expected: {}, actual: {})",
+                    file_entry.original_path, file_entry.hash, hash
+                );
                 continue;
             }
 
@@ -320,8 +363,10 @@ impl BackupManager {
             total_size += file_entry.size;
         }
 
-        info!("Restore completed: {} (files: {}, size: {} bytes)",
-              restore_id, file_count, total_size);
+        info!(
+            "Restore completed: {} (files: {}, size: {} bytes)",
+            restore_id, file_count, total_size
+        );
 
         Ok(restore_id)
     }
@@ -339,20 +384,31 @@ impl BackupManager {
     }
 
     /// 查找最新的备份
-    fn find_latest_backup(&self, config_name: &str, backup_type: BackupType) -> Option<&BackupInfo> {
+    fn find_latest_backup(
+        &self,
+        config_name: &str,
+        backup_type: BackupType,
+    ) -> Option<&BackupInfo> {
         self.backup_history
             .iter()
-            .filter(|b| b.config_name == config_name && b.backup_type == backup_type && b.status == BackupStatus::Completed)
+            .filter(|b| {
+                b.config_name == config_name
+                    && b.backup_type == backup_type
+                    && b.status == BackupStatus::Completed
+            })
             .max_by(|a, b| a.start_time.cmp(&b.start_time))
     }
 
     /// 清理过期备份
     async fn cleanup_expired_backups(&mut self, config_name: &str) -> Result<()> {
-        let config = self.configs.get(config_name)
+        let config = self
+            .configs
+            .get(config_name)
             .ok_or_else(|| PacsError::configuration("Backup configuration not found"))?;
 
         let mut backups_to_remove = Vec::new();
-        let mut completed_backups: Vec<_> = self.backup_history
+        let mut completed_backups: Vec<_> = self
+            .backup_history
             .iter()
             .enumerate()
             .filter(|(_, b)| b.config_name == config_name && b.status == BackupStatus::Completed)
@@ -363,7 +419,10 @@ impl BackupManager {
 
         // 保留最近的N个备份
         if completed_backups.len() > config.retention_count as usize {
-            for (index, backup) in completed_backups.iter().skip(config.retention_count as usize) {
+            for (index, backup) in completed_backups
+                .iter()
+                .skip(config.retention_count as usize)
+            {
                 backups_to_remove.push(*index);
             }
         }
@@ -374,10 +433,16 @@ impl BackupManager {
             info!("Removing expired backup: {}", backup.id);
 
             // 从目标存储删除备份文件
-            if let Ok(target_storage) = self.get_storage_manager(&self.configs[config_name].target_storage).await {
+            if let Ok(target_storage) = self
+                .get_storage_manager(&self.configs[config_name].target_storage)
+                .await
+            {
                 for file_entry in &backup.file_manifest {
                     if let Err(e) = target_storage.delete_file(&file_entry.backup_path).await {
-                        warn!("Failed to delete backup file {}: {}", file_entry.backup_path, e);
+                        warn!(
+                            "Failed to delete backup file {}: {}",
+                            file_entry.backup_path, e
+                        );
                     }
                 }
             }
@@ -432,7 +497,9 @@ impl BackupManager {
                     debug!("Checking backup schedule for: {}", config_name);
 
                     // 检查是否已有正在进行的备份
-                    let has_active_backup = self.active_backups.values()
+                    let has_active_backup = self
+                        .active_backups
+                        .values()
                         .any(|b| b.config_name == *config_name);
 
                     if !has_active_backup {
@@ -446,7 +513,10 @@ impl BackupManager {
     }
 
     /// 创建默认备份配置
-    pub fn create_default_config(source_storage: StorageConfig, target_storage: StorageConfig) -> BackupConfig {
+    pub fn create_default_config(
+        source_storage: StorageConfig,
+        target_storage: StorageConfig,
+    ) -> BackupConfig {
         BackupConfig {
             name: "Default Backup".to_string(),
             backup_type: BackupType::Full,
@@ -454,7 +524,7 @@ impl BackupManager {
             target_storage,
             backup_prefix: "pacs_backup".to_string(),
             schedule: Some("0 2 * * *".to_string()), // 每天凌晨2点
-            retention_count: 7, // 保留7个备份
+            retention_count: 7,                      // 保留7个备份
             compression_enabled: true,
             encryption_enabled: true,
         }

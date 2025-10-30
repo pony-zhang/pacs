@@ -1,9 +1,9 @@
 //! DICOM服务实现
 
-use pacs_core::{PacsError, Result};
-use tracing::{debug, info, warn};
-use std::collections::HashMap;
 use async_trait::async_trait;
+use pacs_core::{PacsError, Result};
+use std::collections::HashMap;
+use tracing::{debug, info, warn};
 
 /// DICOM服务特征
 #[async_trait]
@@ -91,9 +91,11 @@ impl DicomService for CStoreService {
                 debug!("接收到DICOM数据集，大小: {} bytes", dataset.len());
 
                 // 简化实现：直接写入文件
-                let filename = format!("{}/{}.dcm",
-                                      self.storage_dir,
-                                      chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0));
+                let filename = format!(
+                    "{}/{}.dcm",
+                    self.storage_dir,
+                    chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
+                );
 
                 tokio::fs::write(&filename, dataset).await?;
                 info!("DICOM文件已存储: {}", filename);
@@ -157,8 +159,10 @@ impl ServiceManager {
         let mut services = HashMap::new();
 
         // 注册标准服务
-        services.insert("1.2.840.10008.1.1".to_string(), // Verification SOP Class
-                       Box::new(CEchoService) as Box<dyn DicomService>);
+        services.insert(
+            "1.2.840.10008.1.1".to_string(), // Verification SOP Class
+            Box::new(CEchoService) as Box<dyn DicomService>,
+        );
 
         Self { services }
     }
@@ -169,9 +173,7 @@ impl ServiceManager {
 
     pub async fn handle_request(&self, request: DimseRequest) -> Result<DimseResponse> {
         match self.services.get(&request.affected_sop_class_uid) {
-            Some(service) => {
-                service.handle_request(request).await
-            }
+            Some(service) => service.handle_request(request).await,
             None => {
                 warn!("不支持的SOP类: {}", request.affected_sop_class_uid);
                 Ok(DimseResponse {

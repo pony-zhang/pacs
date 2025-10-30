@@ -1,11 +1,11 @@
 //! 影像存储管理
 
-use pacs_core::{PacsError, Result};
-use std::path::Path;
-use object_store::{path::Path as ObjectPath, ObjectStore, PutOptions, GetOptions};
-use std::sync::Arc;
 use chrono::{DateTime, Utc};
+use object_store::{path::Path as ObjectPath, GetOptions, ObjectStore, PutOptions};
+use pacs_core::{PacsError, Result};
 use serde::{Deserialize, Serialize};
+use std::path::Path;
+use std::sync::Arc;
 
 /// 存储类型
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -92,7 +92,9 @@ impl StorageManager {
                 if let Some(os_config) = &config.object_store_config {
                     Some(Self::create_object_store(os_config).await?)
                 } else {
-                    return Err(PacsError::Config("Missing object store configuration".to_string()));
+                    return Err(PacsError::Config(
+                        "Missing object store configuration".to_string(),
+                    ));
                 }
             }
             StorageType::Local => None,
@@ -123,11 +125,17 @@ impl StorageManager {
 
             Ok(Arc::new(builder.build()?))
         } else if let Some(_gcs_config) = &config.gcs {
-            return Err(PacsError::Config("Google Cloud Storage not yet implemented".to_string()));
+            return Err(PacsError::Config(
+                "Google Cloud Storage not yet implemented".to_string(),
+            ));
         } else if let Some(_azure_config) = &config.azure {
-            return Err(PacsError::Config("Azure Blob Storage not yet implemented".to_string()));
+            return Err(PacsError::Config(
+                "Azure Blob Storage not yet implemented".to_string(),
+            ));
         } else {
-            return Err(PacsError::Config("No valid object store configuration found".to_string()));
+            return Err(PacsError::Config(
+                "No valid object store configuration found".to_string(),
+            ));
         }
     }
 
@@ -135,8 +143,9 @@ impl StorageManager {
     pub async fn store_file(&self, data: &[u8], path: &str) -> Result<String> {
         match &self.config.storage_type {
             StorageType::Local => {
-                let base_path = self.local_path.as_ref()
-                    .ok_or_else(|| PacsError::Config("Local storage path not configured".to_string()))?;
+                let base_path = self.local_path.as_ref().ok_or_else(|| {
+                    PacsError::Config("Local storage path not configured".to_string())
+                })?;
                 let full_path = Path::new(base_path).join(path);
 
                 if let Some(parent) = full_path.parent() {
@@ -147,11 +156,15 @@ impl StorageManager {
                 Ok(full_path.to_string_lossy().to_string())
             }
             StorageType::ObjectStorage => {
-                let store = self.object_store.as_ref()
+                let store = self
+                    .object_store
+                    .as_ref()
                     .ok_or_else(|| PacsError::Config("Object store not initialized".to_string()))?;
 
                 let object_path = ObjectPath::from(path);
-                store.put_opts(&object_path, data.into(), PutOptions::default()).await?;
+                store
+                    .put_opts(&object_path, data.into(), PutOptions::default())
+                    .await?;
                 Ok(path.to_string())
             }
         }
@@ -161,14 +174,17 @@ impl StorageManager {
     pub async fn get_file(&self, path: &str) -> Result<Vec<u8>> {
         match &self.config.storage_type {
             StorageType::Local => {
-                let base_path = self.local_path.as_ref()
-                    .ok_or_else(|| PacsError::Config("Local storage path not configured".to_string()))?;
+                let base_path = self.local_path.as_ref().ok_or_else(|| {
+                    PacsError::Config("Local storage path not configured".to_string())
+                })?;
                 let full_path = Path::new(base_path).join(path);
                 let data = tokio::fs::read(full_path).await?;
                 Ok(data)
             }
             StorageType::ObjectStorage => {
-                let store = self.object_store.as_ref()
+                let store = self
+                    .object_store
+                    .as_ref()
                     .ok_or_else(|| PacsError::Config("Object store not initialized".to_string()))?;
 
                 let object_path = ObjectPath::from(path);
@@ -183,13 +199,16 @@ impl StorageManager {
     pub async fn file_exists(&self, path: &str) -> Result<bool> {
         match &self.config.storage_type {
             StorageType::Local => {
-                let base_path = self.local_path.as_ref()
-                    .ok_or_else(|| PacsError::Config("Local storage path not configured".to_string()))?;
+                let base_path = self.local_path.as_ref().ok_or_else(|| {
+                    PacsError::Config("Local storage path not configured".to_string())
+                })?;
                 let full_path = Path::new(base_path).join(path);
                 Ok(tokio::fs::metadata(full_path).await.is_ok())
             }
             StorageType::ObjectStorage => {
-                let store = self.object_store.as_ref()
+                let store = self
+                    .object_store
+                    .as_ref()
                     .ok_or_else(|| PacsError::Config("Object store not initialized".to_string()))?;
 
                 let object_path = ObjectPath::from(path);
@@ -202,14 +221,17 @@ impl StorageManager {
     pub async fn delete_file(&self, path: &str) -> Result<()> {
         match &self.config.storage_type {
             StorageType::Local => {
-                let base_path = self.local_path.as_ref()
-                    .ok_or_else(|| PacsError::Config("Local storage path not configured".to_string()))?;
+                let base_path = self.local_path.as_ref().ok_or_else(|| {
+                    PacsError::Config("Local storage path not configured".to_string())
+                })?;
                 let full_path = Path::new(base_path).join(path);
                 tokio::fs::remove_file(full_path).await?;
                 Ok(())
             }
             StorageType::ObjectStorage => {
-                let store = self.object_store.as_ref()
+                let store = self
+                    .object_store
+                    .as_ref()
                     .ok_or_else(|| PacsError::Config("Object store not initialized".to_string()))?;
 
                 let object_path = ObjectPath::from(path);
@@ -223,8 +245,9 @@ impl StorageManager {
     pub async fn get_storage_stats(&self) -> Result<StorageStats> {
         match &self.config.storage_type {
             StorageType::Local => {
-                let base_path = self.local_path.as_ref()
-                    .ok_or_else(|| PacsError::Config("Local storage path not configured".to_string()))?;
+                let base_path = self.local_path.as_ref().ok_or_else(|| {
+                    PacsError::Config("Local storage path not configured".to_string())
+                })?;
 
                 let (total_files, total_size) = self.scan_local_directory(base_path).await?;
 
@@ -268,7 +291,10 @@ impl StorageManager {
     }
 
     /// 扫描本地目录获取统计信息
-    fn scan_local_directory(&self, dir_path: &str) -> impl std::future::Future<Output = Result<(u64, u64)>> + '_ {
+    fn scan_local_directory(
+        &self,
+        dir_path: &str,
+    ) -> impl std::future::Future<Output = Result<(u64, u64)>> + '_ {
         async move {
             let mut total_files = 0u64;
             let mut total_size = 0u64;

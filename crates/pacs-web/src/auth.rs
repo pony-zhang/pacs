@@ -7,13 +7,13 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use pacs_core::{Result, error::PacsError};
+use pacs_core::{error::PacsError, Result};
 use serde::{Deserialize, Serialize};
-use serde_json::{json};
+use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 use uuid::Uuid;
 
 /// 用户角色
@@ -82,12 +82,12 @@ pub struct UserInfo {
 /// JWT Claims
 #[derive(Debug, Serialize, Deserialize)]
 struct Claims {
-    sub: String,        // 用户ID
-    username: String,   // 用户名
-    role: String,       // 角色
-    exp: usize,         // 过期时间
-    iat: usize,         // 签发时间
-    jti: String,        // JWT ID
+    sub: String,      // 用户ID
+    username: String, // 用户名
+    role: String,     // 角色
+    exp: usize,       // 过期时间
+    iat: usize,       // 签发时间
+    jti: String,      // JWT ID
 }
 
 /// 认证服务
@@ -166,7 +166,8 @@ impl AuthService {
     pub async fn login(&self, request: LoginRequest) -> Result<LoginResponse> {
         let users = self.users.read().await;
 
-        let user = users.get(&request.username)
+        let user = users
+            .get(&request.username)
             .ok_or_else(|| PacsError::Validation("Invalid username or password".to_string()))?;
 
         if !user.is_active {
@@ -176,7 +177,9 @@ impl AuthService {
         // TODO: 实际应用中应该使用安全的密码验证
         // 这里为了演示，简单验证密码为用户名
         if request.password != user.username {
-            return Err(PacsError::Validation("Invalid username or password".to_string()));
+            return Err(PacsError::Validation(
+                "Invalid username or password".to_string(),
+            ));
         }
 
         // 生成JWT token
@@ -220,7 +223,8 @@ impl AuthService {
 
         // TODO: 实际使用真实的JWT库
         // 这里为了演示，简单编码claims
-        let token = format!("{}.{}.{}",
+        let token = format!(
+            "{}.{}.{}",
             base64::encode(serde_json::to_string(&claims)?),
             "signature", // 模拟签名
             "header"     // 模拟头部
@@ -252,7 +256,8 @@ impl AuthService {
 
         // 获取用户信息
         let users = self.users.read().await;
-        let user = users.get(&claims.username)
+        let user = users
+            .get(&claims.username)
             .ok_or_else(|| PacsError::Validation("User not found".to_string()))?;
 
         if !user.is_active {
@@ -275,7 +280,8 @@ pub async fn auth_middleware(
     next: Next,
 ) -> Result<Response, pacs_core::error::PacsError> {
     // 从请求头获取token
-    let auth_header = request.headers()
+    let auth_header = request
+        .headers()
         .get(header::AUTHORIZATION)
         .and_then(|h| h.to_str().ok());
 
@@ -300,7 +306,6 @@ pub async fn auth_middleware(
     }
 }
 
-
 /// 登录处理器
 pub async fn login_handler(
     State(auth_service): State<Arc<AuthService>>,
@@ -321,10 +326,10 @@ pub async fn login_handler(
 }
 
 /// 获取当前用户信息
-pub async fn get_current_user(
-    request: Request,
-) -> Result<impl IntoResponse> {
-    let user = request.extensions().get::<User>()
+pub async fn get_current_user(request: Request) -> Result<impl IntoResponse> {
+    let user = request
+        .extensions()
+        .get::<User>()
         .ok_or_else(|| PacsError::Validation("User not authenticated".to_string()))?;
 
     let user_info = UserInfo {
@@ -344,7 +349,9 @@ pub async fn get_all_users_handler(
     State(auth_service): State<Arc<AuthService>>,
     request: Request,
 ) -> Result<impl IntoResponse> {
-    let current_user = request.extensions().get::<User>()
+    let current_user = request
+        .extensions()
+        .get::<User>()
         .ok_or_else(|| PacsError::Validation("User not authenticated".to_string()))?;
 
     if current_user.role != UserRole::Admin {

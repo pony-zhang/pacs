@@ -1,12 +1,12 @@
 //! 归档管理
 
-use pacs_core::{PacsError, Result};
-use crate::storage::{StorageManager, StorageConfig, StorageType};
 use crate::lifecycle::{LifecycleManager, LifecycleStage};
+use crate::storage::{StorageConfig, StorageManager, StorageType};
 use chrono::{DateTime, Utc};
+use pacs_core::{PacsError, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tracing::{info, warn, error, debug};
+use tracing::{debug, error, info, warn};
 
 /// 归档策略
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -138,7 +138,9 @@ impl ArchiveManager {
 
     /// 手动归档文件
     pub async fn archive_file(&mut self, file_path: &str, policy_name: &str) -> Result<String> {
-        let policy = self.policies.get(policy_name)
+        let policy = self
+            .policies
+            .get(policy_name)
             .ok_or_else(|| PacsError::configuration("Archive policy not found"))?;
 
         if !policy.enabled {
@@ -174,10 +176,14 @@ impl ArchiveManager {
 
     /// 执行归档任务
     async fn execute_archive_task(&mut self, task_id: &str) -> Result<()> {
-        let task = self.active_tasks.get_mut(task_id)
+        let task = self
+            .active_tasks
+            .get_mut(task_id)
             .ok_or_else(|| PacsError::configuration("Archive task not found"))?;
 
-        let policy = self.policies.get(&task.policy_name)
+        let policy = self
+            .policies
+            .get(&task.policy_name)
             .ok_or_else(|| PacsError::configuration("Archive policy not found"))?;
 
         task.status = ArchiveTaskStatus::InProgress;
@@ -185,7 +191,10 @@ impl ArchiveManager {
         info!("Executing archive task: {}", task_id);
 
         // 获取源存储管理器（默认使用第一个存储管理器）
-        let source_storage = self.storage_managers.values().next()
+        let source_storage = self
+            .storage_managers
+            .values()
+            .next()
             .ok_or_else(|| PacsError::configuration("No storage manager available"))?;
 
         // 获取文件信息
@@ -210,7 +219,9 @@ impl ArchiveManager {
         task.compression_ratio = Some(1.0 - (processed_data.len() as f64 / file_data.len() as f64));
 
         // 存储到归档位置
-        target_storage.store_file(&processed_data, &archive_path).await?;
+        target_storage
+            .store_file(&processed_data, &archive_path)
+            .await?;
 
         // 从源存储删除原文件
         source_storage.delete_file(&task.file_path).await?;
@@ -219,8 +230,12 @@ impl ArchiveManager {
         task.status = ArchiveTaskStatus::Completed;
         task.end_time = Some(Utc::now());
 
-        info!("Archive task completed: {} (compressed to {} bytes, ratio: {:.2}%)",
-              task_id, processed_data.len(), task.compression_ratio.unwrap_or(0.0) * 100.0);
+        info!(
+            "Archive task completed: {} (compressed to {} bytes, ratio: {:.2}%)",
+            task_id,
+            processed_data.len(),
+            task.compression_ratio.unwrap_or(0.0) * 100.0
+        );
 
         // 移动到历史记录
         if let Some(completed_task) = self.active_tasks.remove(task_id) {
@@ -228,8 +243,15 @@ impl ArchiveManager {
         }
 
         // 更新生命周期管理
-        if let Err(e) = self.lifecycle_manager.transition_file(&task.file_path, LifecycleStage::Archive).await {
-            warn!("Failed to update lifecycle status for {}: {}", task.file_path, e);
+        if let Err(e) = self
+            .lifecycle_manager
+            .transition_file(&task.file_path, LifecycleStage::Archive)
+            .await
+        {
+            warn!(
+                "Failed to update lifecycle status for {}: {}",
+                task.file_path, e
+            );
         }
 
         Ok(())
@@ -254,7 +276,8 @@ impl ArchiveManager {
                 use flate2::Compression;
                 use std::io::Write;
 
-                let mut encoder = GzEncoder::new(Vec::new(), Compression::new(settings.level.into()));
+                let mut encoder =
+                    GzEncoder::new(Vec::new(), Compression::new(settings.level.into()));
                 encoder.write_all(data)?;
                 Ok(encoder.finish()?)
             }
@@ -287,10 +310,14 @@ impl ArchiveManager {
 
             for file_path in eligible_files {
                 // 检查是否已有归档任务
-                let has_active_task = self.active_tasks.values()
+                let has_active_task = self
+                    .active_tasks
+                    .values()
                     .any(|t| t.file_path == file_path && t.policy_name == *policy_name);
 
-                let has_completed_task = self.task_history.iter()
+                let has_completed_task = self
+                    .task_history
+                    .iter()
                     .any(|t| t.file_path == file_path && t.policy_name == *policy_name);
 
                 if !has_active_task && !has_completed_task {
@@ -316,7 +343,10 @@ impl ArchiveManager {
         // 这里提供一个基本的框架
 
         // 获取存储管理器
-        let storage_manager = self.storage_managers.values().next()
+        let storage_manager = self
+            .storage_managers
+            .values()
+            .next()
             .ok_or_else(|| PacsError::configuration("No storage manager available"))?;
 
         // TODO: 实现文件遍历和条件检查逻辑
@@ -330,14 +360,21 @@ impl ArchiveManager {
     /// 从归档恢复文件
     pub async fn restore_file(&mut self, task_id: &str, target_path: &str) -> Result<()> {
         // 查找归档任务
-        let archive_task = self.task_history.iter()
+        let archive_task = self
+            .task_history
+            .iter()
             .find(|t| t.id == task_id && t.status == ArchiveTaskStatus::Completed)
             .ok_or_else(|| PacsError::configuration("Archive task not found or not completed"))?;
 
-        info!("Restoring file from archive: {} to {}", task_id, target_path);
+        info!(
+            "Restoring file from archive: {} to {}",
+            task_id, target_path
+        );
 
         // 获取归档存储配置
-        let policy = self.policies.get(&archive_task.policy_name)
+        let policy = self
+            .policies
+            .get(&archive_task.policy_name)
             .ok_or_else(|| PacsError::configuration("Archive policy not found"))?;
 
         // 创建归档存储管理器
@@ -348,16 +385,25 @@ impl ArchiveManager {
 
         // 解压缩（如果需要）
         let restored_data = if policy.compression_settings.is_some() {
-            self.decompress_data(&archived_data, &policy.compression_settings.as_ref().unwrap()).await?
+            self.decompress_data(
+                &archived_data,
+                &policy.compression_settings.as_ref().unwrap(),
+            )
+            .await?
         } else {
             archived_data
         };
 
         // 存储到目标位置
-        let target_storage = self.storage_managers.values().next()
+        let target_storage = self
+            .storage_managers
+            .values()
+            .next()
             .ok_or_else(|| PacsError::configuration("No storage manager available"))?;
 
-        target_storage.store_file(&restored_data, target_path).await?;
+        target_storage
+            .store_file(&restored_data, target_path)
+            .await?;
 
         info!("File restored successfully: {}", target_path);
 
@@ -365,7 +411,11 @@ impl ArchiveManager {
     }
 
     /// 解压缩数据
-    async fn decompress_data(&self, data: &[u8], settings: &CompressionSettings) -> Result<Vec<u8>> {
+    async fn decompress_data(
+        &self,
+        data: &[u8],
+        settings: &CompressionSettings,
+    ) -> Result<Vec<u8>> {
         match settings.algorithm {
             CompressionAlgorithm::Gzip => {
                 use flate2::read::GzDecoder;
@@ -398,7 +448,7 @@ impl ArchiveManager {
         ArchivePolicy {
             name: "Default Archive Policy".to_string(),
             conditions: vec![
-                ArchiveCondition::TimeBasedDays(365), // 1年后归档
+                ArchiveCondition::TimeBasedDays(365),          // 1年后归档
                 ArchiveCondition::AccessFrequencyLessThan(10), // 30天内访问少于10次
             ],
             target_storage,

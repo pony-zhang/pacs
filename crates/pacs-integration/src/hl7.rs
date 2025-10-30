@@ -129,7 +129,9 @@ impl Hl7Parser {
         // 解析MSH段
         let msh_segment = self.parse_segment(lines[0])?;
         if msh_segment.segment_type != "MSH" {
-            return Err(Hl7Error::InvalidFormat("Message must start with MSH segment".to_string()));
+            return Err(Hl7Error::InvalidFormat(
+                "Message must start with MSH segment".to_string(),
+            ));
         }
 
         let message_type = self.extract_message_type(&msh_segment)?;
@@ -144,10 +146,30 @@ impl Hl7Parser {
 
         Ok(Hl7Message {
             message_type,
-            trigger_event: msh_segment.fields.get(9).and_then(|f| f.first()).cloned().unwrap_or_default(),
-            message_control_id: msh_segment.fields.get(10).and_then(|f| f.first()).cloned().unwrap_or_default(),
-            processing_id: msh_segment.fields.get(11).and_then(|f| f.first()).cloned().unwrap_or_default(),
-            version_id: msh_segment.fields.get(12).and_then(|f| f.first()).cloned().unwrap_or_default(),
+            trigger_event: msh_segment
+                .fields
+                .get(9)
+                .and_then(|f| f.first())
+                .cloned()
+                .unwrap_or_default(),
+            message_control_id: msh_segment
+                .fields
+                .get(10)
+                .and_then(|f| f.first())
+                .cloned()
+                .unwrap_or_default(),
+            processing_id: msh_segment
+                .fields
+                .get(11)
+                .and_then(|f| f.first())
+                .cloned()
+                .unwrap_or_default(),
+            version_id: msh_segment
+                .fields
+                .get(12)
+                .and_then(|f| f.first())
+                .cloned()
+                .unwrap_or_default(),
             timestamp,
             segments,
         })
@@ -191,7 +213,9 @@ impl Hl7Parser {
 
         let type_parts: Vec<&str> = msg_type.split(self.component_separator).collect();
         if type_parts.is_empty() {
-            return Err(Hl7Error::InvalidFormat("Invalid message type format".to_string()));
+            return Err(Hl7Error::InvalidFormat(
+                "Invalid message type format".to_string(),
+            ));
         }
 
         Hl7MessageType::try_from(type_parts[0])
@@ -206,26 +230,36 @@ impl Hl7Parser {
             .ok_or_else(|| Hl7Error::MissingField("Timestamp (MSH-7)".to_string()))?;
 
         // HL7时间格式: YYYYMMDDHHMMSS[.SSSS][+/-ZZZZ]
-        let cleaned = timestamp_str.split(&['+', '-'][..]).next().unwrap_or(timestamp_str);
+        let cleaned = timestamp_str
+            .split(&['+', '-'][..])
+            .next()
+            .unwrap_or(timestamp_str);
         let datetime = if cleaned.len() >= 14 {
-            let year: i32 = cleaned[0..4].parse()
+            let year: i32 = cleaned[0..4]
+                .parse()
                 .map_err(|_| Hl7Error::ParseError("Invalid year".to_string()))?;
-            let month: u32 = cleaned[4..6].parse()
+            let month: u32 = cleaned[4..6]
+                .parse()
                 .map_err(|_| Hl7Error::ParseError("Invalid month".to_string()))?;
-            let day: u32 = cleaned[6..8].parse()
+            let day: u32 = cleaned[6..8]
+                .parse()
                 .map_err(|_| Hl7Error::ParseError("Invalid day".to_string()))?;
-            let hour: u32 = cleaned[8..10].parse()
+            let hour: u32 = cleaned[8..10]
+                .parse()
                 .map_err(|_| Hl7Error::ParseError("Invalid hour".to_string()))?;
-            let minute: u32 = cleaned[10..12].parse()
+            let minute: u32 = cleaned[10..12]
+                .parse()
                 .map_err(|_| Hl7Error::ParseError("Invalid minute".to_string()))?;
             let second: u32 = if cleaned.len() >= 14 {
-                cleaned[12..14].parse()
+                cleaned[12..14]
+                    .parse()
                     .map_err(|_| Hl7Error::ParseError("Invalid second".to_string()))?
             } else {
                 0
             };
 
-            chrono::Utc.with_ymd_and_hms(year, month, day, hour, minute, second)
+            chrono::Utc
+                .with_ymd_and_hms(year, month, day, hour, minute, second)
                 .single()
                 .ok_or_else(|| Hl7Error::ParseError("Invalid datetime".to_string()))?
         } else {
@@ -241,21 +275,29 @@ impl Hl7Parser {
             return Ok(None);
         }
 
-        let pid_segment = message.segments.iter()
+        let pid_segment = message
+            .segments
+            .iter()
             .find(|s| s.segment_type == "PID")
             .ok_or_else(|| Hl7Error::MissingField("PID segment".to_string()))?;
 
-        let patient_id = pid_segment.fields.get(3)
+        let patient_id = pid_segment
+            .fields
+            .get(3)
             .and_then(|f| f.first())
             .ok_or_else(|| Hl7Error::MissingField("Patient ID (PID-3)".to_string()))?
             .clone();
 
-        let patient_name = pid_segment.fields.get(5)
+        let patient_name = pid_segment
+            .fields
+            .get(5)
             .and_then(|f| f.first())
             .map(|name| name.replace(&self.component_separator.to_string(), " "))
             .unwrap_or_default();
 
-        let birth_date = pid_segment.fields.get(7)
+        let birth_date = pid_segment
+            .fields
+            .get(7)
             .and_then(|f| f.first())
             .and_then(|date_str| {
                 if date_str.len() >= 8 {
@@ -269,17 +311,15 @@ impl Hl7Parser {
                 }
             });
 
-        let sex = pid_segment.fields.get(8)
-            .and_then(|f| f.first())
-            .cloned();
+        let sex = pid_segment.fields.get(8).and_then(|f| f.first()).cloned();
 
-        let address = pid_segment.fields.get(11)
+        let address = pid_segment
+            .fields
+            .get(11)
             .and_then(|f| f.first())
             .map(|addr| addr.replace(&self.component_separator.to_string(), " "));
 
-        let phone = pid_segment.fields.get(13)
-            .and_then(|f| f.first())
-            .cloned();
+        let phone = pid_segment.fields.get(13).and_then(|f| f.first()).cloned();
 
         Ok(Some(PatientInfo {
             patient_id,
@@ -297,29 +337,34 @@ impl Hl7Parser {
             return Ok(None);
         }
 
-        let orc_segment = message.segments.iter()
+        let orc_segment = message
+            .segments
+            .iter()
             .find(|s| s.segment_type == "ORC")
             .ok_or_else(|| Hl7Error::MissingField("ORC segment".to_string()))?;
 
-        let placer_order_number = orc_segment.fields.get(2)
+        let placer_order_number = orc_segment
+            .fields
+            .get(2)
             .and_then(|f| f.first())
             .ok_or_else(|| Hl7Error::MissingField("Placer Order Number (ORC-2)".to_string()))?
             .clone();
 
-        let filler_order_number = orc_segment.fields.get(3)
-            .and_then(|f| f.first())
-            .cloned();
+        let filler_order_number = orc_segment.fields.get(3).and_then(|f| f.first()).cloned();
 
         // 查找OBR段获取更多信息
-        let obr_segment = message.segments.iter()
-            .find(|s| s.segment_type == "OBR");
+        let obr_segment = message.segments.iter().find(|s| s.segment_type == "OBR");
 
         let (procedure_code, procedure_description) = if let Some(obr) = obr_segment {
-            let code = obr.fields.get(4)
+            let code = obr
+                .fields
+                .get(4)
                 .and_then(|f| f.first())
                 .cloned()
                 .unwrap_or_default();
-            let description = obr.fields.get(4)
+            let description = obr
+                .fields
+                .get(4)
                 .and_then(|f| f.get(1))
                 .cloned()
                 .unwrap_or_default();
@@ -358,32 +403,39 @@ impl Hl7Parser {
     /// 解析HL7日期时间
     fn parse_hl7_datetime(&self, datetime_str: &str) -> Result<DateTime<Utc>> {
         if datetime_str.len() >= 14 {
-            let year: i32 = datetime_str[0..4].parse()
+            let year: i32 = datetime_str[0..4]
+                .parse()
                 .map_err(|_| Hl7Error::ParseError("Invalid year".to_string()))?;
-            let month: u32 = datetime_str[4..6].parse()
+            let month: u32 = datetime_str[4..6]
+                .parse()
                 .map_err(|_| Hl7Error::ParseError("Invalid month".to_string()))?;
-            let day: u32 = datetime_str[6..8].parse()
+            let day: u32 = datetime_str[6..8]
+                .parse()
                 .map_err(|_| Hl7Error::ParseError("Invalid day".to_string()))?;
             let hour: u32 = if datetime_str.len() >= 10 {
-                datetime_str[8..10].parse()
+                datetime_str[8..10]
+                    .parse()
                     .map_err(|_| Hl7Error::ParseError("Invalid hour".to_string()))?
             } else {
                 0
             };
             let minute: u32 = if datetime_str.len() >= 12 {
-                datetime_str[10..12].parse()
+                datetime_str[10..12]
+                    .parse()
                     .map_err(|_| Hl7Error::ParseError("Invalid minute".to_string()))?
             } else {
                 0
             };
             let second: u32 = if datetime_str.len() >= 14 {
-                datetime_str[12..14].parse()
+                datetime_str[12..14]
+                    .parse()
                     .map_err(|_| Hl7Error::ParseError("Invalid second".to_string()))?
             } else {
                 0
             };
 
-            chrono::Utc.with_ymd_and_hms(year, month, day, hour, minute, second)
+            chrono::Utc
+                .with_ymd_and_hms(year, month, day, hour, minute, second)
                 .single()
                 .ok_or_else(|| Hl7Error::ParseError("Invalid datetime".to_string()))
         } else {
@@ -407,7 +459,10 @@ impl Hl7Interface {
 
     /// 处理接收到的HL7消息
     pub async fn process_message(&self, message: &str) -> Result<Hl7Message> {
-        debug!("Processing HL7 message: {}", message.chars().take(100).collect::<String>());
+        debug!(
+            "Processing HL7 message: {}",
+            message.chars().take(100).collect::<String>()
+        );
 
         let parsed_message = self.parser.parse(message)?;
 
@@ -416,24 +471,33 @@ impl Hl7Interface {
                 if let Ok(Some(patient_info)) = self.parser.extract_patient_info(&parsed_message) {
                     self.handle_patient_update(&patient_info).await?;
                 }
-            },
+            }
             Hl7MessageType::ORM => {
                 if let Ok(Some(order_info)) = self.parser.extract_order_info(&parsed_message) {
                     self.handle_order_request(&order_info).await?;
                 }
-            },
+            }
             _ => {
-                warn!("Unhandled HL7 message type: {:?}", parsed_message.message_type);
+                warn!(
+                    "Unhandled HL7 message type: {:?}",
+                    parsed_message.message_type
+                );
             }
         }
 
-        info!("Successfully processed HL7 message type: {:?}", parsed_message.message_type);
+        info!(
+            "Successfully processed HL7 message type: {:?}",
+            parsed_message.message_type
+        );
         Ok(parsed_message)
     }
 
     /// 处理患者信息更新
     async fn handle_patient_update(&self, patient_info: &PatientInfo) -> Result<()> {
-        info!("Updating patient information for ID: {}", patient_info.patient_id);
+        info!(
+            "Updating patient information for ID: {}",
+            patient_info.patient_id
+        );
         // TODO: 集成到数据库模块
         // 这里应该调用数据库模块更新患者信息
         Ok(())
@@ -441,14 +505,22 @@ impl Hl7Interface {
 
     /// 处理检查申请
     async fn handle_order_request(&self, order_info: &OrderInfo) -> Result<()> {
-        info!("Processing order request: {}", order_info.placer_order_number);
+        info!(
+            "Processing order request: {}",
+            order_info.placer_order_number
+        );
         // TODO: 集成到工作流引擎和数据库模块
         // 这里应该创建新的检查记录并触发工作流
         Ok(())
     }
 
     /// 生成HL7 ACK消息
-    pub fn generate_ack(&self, original_message: &Hl7Message, success: bool, error_message: Option<&str>) -> String {
+    pub fn generate_ack(
+        &self,
+        original_message: &Hl7Message,
+        success: bool,
+        error_message: Option<&str>,
+    ) -> String {
         let now = chrono::Utc::now().format("%Y%m%d%H%M%S");
         let ack_code = if success { "AA" } else { "AE" };
         let error_text = error_message.unwrap_or("").replace('|', "\\E\\");

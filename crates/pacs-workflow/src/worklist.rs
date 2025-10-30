@@ -2,7 +2,7 @@
 //!
 //! 为不同角色用户提供个性化的任务列表
 
-use pacs_core::{Result, PacsError};
+use pacs_core::{PacsError, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -24,20 +24,20 @@ pub struct WorkItem {
 /// 工作项状态
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum WorkItemStatus {
-    Pending,        // 待处理
-    InProgress,     // 处理中
-    Completed,      // 已完成
-    Rejected,       // 已拒绝
-    OnHold,         // 暂停
+    Pending,    // 待处理
+    InProgress, // 处理中
+    Completed,  // 已完成
+    Rejected,   // 已拒绝
+    OnHold,     // 暂停
 }
 
 /// 工作项优先级
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum WorkItemPriority {
-    Critical,       // 危急
-    High,          // 高
-    Normal,        // 正常
-    Low,           // 低
+    Critical, // 危急
+    High,     // 高
+    Normal,   // 正常
+    Low,      // 低
 }
 
 /// 工作列表过滤器
@@ -98,7 +98,7 @@ pub struct WorkListStats {
 pub struct WorkListManager {
     work_items: HashMap<Uuid, WorkItem>,
     radiologist_worklists: HashMap<Uuid, Vec<Uuid>>, // radiologist_id -> work_item_ids
-    study_work_items: HashMap<Uuid, Vec<Uuid>>, // study_id -> work_item_ids
+    study_work_items: HashMap<Uuid, Vec<Uuid>>,      // study_id -> work_item_ids
 }
 
 impl WorkListManager {
@@ -162,13 +162,21 @@ impl WorkListManager {
     }
 
     /// 更新工作项状态
-    pub fn update_work_item_status(&mut self, work_item_id: Uuid, status: WorkItemStatus) -> Result<()> {
+    pub fn update_work_item_status(
+        &mut self,
+        work_item_id: Uuid,
+        status: WorkItemStatus,
+    ) -> Result<()> {
         if let Some(work_item) = self.work_items.get_mut(&work_item_id) {
             let old_status = work_item.status.clone();
             work_item.status = status.clone();
 
-            tracing::info!("Updated work item {} status from {:?} to {:?}",
-                work_item_id, old_status, status);
+            tracing::info!(
+                "Updated work item {} status from {:?} to {:?}",
+                work_item_id,
+                old_status,
+                status
+            );
 
             // 如果工作项被拒绝或完成，可以从放射科医生的活跃列表中移除
             if matches!(status, WorkItemStatus::Completed | WorkItemStatus::Rejected) {
@@ -181,7 +189,10 @@ impl WorkListManager {
 
             Ok(())
         } else {
-            Err(PacsError::NotFound(format!("Work item {} not found", work_item_id)))
+            Err(PacsError::NotFound(format!(
+                "Work item {} not found",
+                work_item_id
+            )))
         }
     }
 
@@ -207,10 +218,17 @@ impl WorkListManager {
                 .or_insert_with(Vec::new)
                 .push(work_item_id);
 
-            tracing::info!("Assigned work item {} to radiologist {}", work_item_id, radiologist_id);
+            tracing::info!(
+                "Assigned work item {} to radiologist {}",
+                work_item_id,
+                radiologist_id
+            );
             Ok(())
         } else {
-            Err(PacsError::NotFound(format!("Work item {} not found", work_item_id)))
+            Err(PacsError::NotFound(format!(
+                "Work item {} not found",
+                work_item_id
+            )))
         }
     }
 
@@ -232,11 +250,9 @@ impl WorkListManager {
         }
 
         // 按优先级和创建时间排序
-        items.sort_by(|a, b| {
-            match b.priority.cmp(&a.priority) {
-                std::cmp::Ordering::Equal => a.assigned_at.cmp(&b.assigned_at),
-                other => other,
-            }
+        items.sort_by(|a, b| match b.priority.cmp(&a.priority) {
+            std::cmp::Ordering::Equal => a.assigned_at.cmp(&b.assigned_at),
+            other => other,
         });
 
         // 应用分页
@@ -247,7 +263,10 @@ impl WorkListManager {
         let start = offset.min(total_items);
         let end = (start + limit).min(total_items);
 
-        Ok(items[start..end].iter().map(|item| (*item).clone()).collect())
+        Ok(items[start..end]
+            .iter()
+            .map(|item| (*item).clone())
+            .collect())
     }
 
     /// 获取放射科医生的工作列表
@@ -263,7 +282,11 @@ impl WorkListManager {
     pub fn get_study_work_items(&self, study_id: Uuid) -> Vec<&WorkItem> {
         self.study_work_items
             .get(&study_id)
-            .map(|ids| ids.iter().filter_map(|&id| self.work_items.get(&id)).collect())
+            .map(|ids| {
+                ids.iter()
+                    .filter_map(|&id| self.work_items.get(&id))
+                    .collect()
+            })
             .unwrap_or_default()
     }
 
@@ -311,7 +334,10 @@ impl WorkListManager {
             }
 
             // 统计按优先级分布
-            *stats.workload_by_priority.entry(item.priority.clone()).or_insert(0) += 1;
+            *stats
+                .workload_by_priority
+                .entry(item.priority.clone())
+                .or_insert(0) += 1;
         }
 
         // 计算平均处理时间
@@ -323,7 +349,8 @@ impl WorkListManager {
                     item.estimated_duration_minutes as i64
                 })
                 .sum();
-            stats.average_processing_time_minutes = total_duration as f64 / completed_items.len() as f64;
+            stats.average_processing_time_minutes =
+                total_duration as f64 / completed_items.len() as f64;
         }
 
         stats
@@ -347,7 +374,10 @@ impl WorkListManager {
             tracing::info!("Removed work item {}", work_item_id);
             Ok(())
         } else {
-            Err(PacsError::NotFound(format!("Work item {} not found", work_item_id)))
+            Err(PacsError::NotFound(format!(
+                "Work item {} not found",
+                work_item_id
+            )))
         }
     }
 
@@ -355,7 +385,12 @@ impl WorkListManager {
     pub fn get_all_active_work_items(&self) -> Vec<&WorkItem> {
         self.work_items
             .values()
-            .filter(|item| matches!(item.status, WorkItemStatus::Pending | WorkItemStatus::InProgress))
+            .filter(|item| {
+                matches!(
+                    item.status,
+                    WorkItemStatus::Pending | WorkItemStatus::InProgress
+                )
+            })
             .collect()
     }
 }

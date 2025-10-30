@@ -1,13 +1,13 @@
 //! 数据生命周期管理
 
+use crate::storage::{StorageConfig, StorageManager, StorageType};
+use chrono::{DateTime, Duration, Utc};
 use pacs_core::{PacsError, Result};
-use crate::storage::{StorageManager, StorageConfig, StorageType};
-use chrono::{DateTime, Utc, Duration};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
 use tokio::time::{interval, sleep};
-use tracing::{info, warn, error, debug};
+use tracing::{debug, error, info, warn};
 
 /// 生命周期阶段
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -132,7 +132,11 @@ impl LifecycleManager {
     }
 
     /// 注册新文件到生命周期管理
-    pub async fn register_file(&mut self, file_path: &str, tags: Option<HashMap<String, String>>) -> Result<()> {
+    pub async fn register_file(
+        &mut self,
+        file_path: &str,
+        tags: Option<HashMap<String, String>>,
+    ) -> Result<()> {
         let status = LifecycleStatus {
             file_path: file_path.to_string(),
             current_stage: LifecycleStage::Online,
@@ -154,7 +158,10 @@ impl LifecycleManager {
             status.last_accessed_at = Some(Utc::now());
             status.access_count += 1;
 
-            debug!("Recorded access for file: {} (count: {})", file_path, status.access_count);
+            debug!(
+                "Recorded access for file: {} (count: {})",
+                file_path, status.access_count
+            );
         }
         Ok(())
     }
@@ -169,7 +176,8 @@ impl LifecycleManager {
             if let Some(next_transition) = status.next_transition_at {
                 if next_transition <= now {
                     // 执行转换
-                    if let Ok(transitioned) = self.execute_file_transition(file_path, status).await {
+                    if let Ok(transitioned) = self.execute_file_transition(file_path, status).await
+                    {
                         if transitioned {
                             transitions_executed.push(file_path.clone());
                         }
@@ -182,14 +190,21 @@ impl LifecycleManager {
         }
 
         if !transitions_executed.is_empty() {
-            info!("Executed {} lifecycle transitions", transitions_executed.len());
+            info!(
+                "Executed {} lifecycle transitions",
+                transitions_executed.len()
+            );
         }
 
         Ok(transitions_executed)
     }
 
     /// 执行单个文件的生命周期转换
-    async fn execute_file_transition(&mut self, file_path: &str, status: &mut LifecycleStatus) -> Result<bool> {
+    async fn execute_file_transition(
+        &mut self,
+        file_path: &str,
+        status: &mut LifecycleStatus,
+    ) -> Result<bool> {
         // 获取适用的策略
         let applicable_rules = self.get_applicable_rules(file_path, status)?;
 
@@ -212,7 +227,11 @@ impl LifecycleManager {
     }
 
     /// 获取适用的生命周期规则
-    fn get_applicable_rules(&self, file_path: &str, status: &LifecycleStatus) -> Result<Vec<&LifecycleRule>> {
+    fn get_applicable_rules(
+        &self,
+        file_path: &str,
+        status: &LifecycleStatus,
+    ) -> Result<Vec<&LifecycleRule>> {
         let mut applicable_rules = Vec::new();
 
         for policy in &self.policies {
@@ -259,21 +278,33 @@ impl LifecycleManager {
     }
 
     /// 检查是否应该进行转换
-    fn should_transition(&self, status: &LifecycleStatus, transition: &LifecycleTransition) -> bool {
+    fn should_transition(
+        &self,
+        status: &LifecycleStatus,
+        transition: &LifecycleTransition,
+    ) -> bool {
         let days_since_creation = (Utc::now() - status.created_at).num_days() as u32;
         days_since_creation >= transition.days_after_creation
     }
 
     /// 转换文件到新的存储阶段
-    async fn transition_file(&mut self, file_path: &str, status: &mut LifecycleStatus, transition: &LifecycleTransition) -> Result<()> {
-        let current_storage = self.storage_managers.get(&status.current_stage)
+    async fn transition_file(
+        &mut self,
+        file_path: &str,
+        status: &mut LifecycleStatus,
+        transition: &LifecycleTransition,
+    ) -> Result<()> {
+        let current_storage = self
+            .storage_managers
+            .get(&status.current_stage)
             .ok_or_else(|| PacsError::configuration("Current storage stage not configured"))?;
 
         let target_storage = if let Some(target_config) = &transition.target_storage {
             // 创建新的存储管理器
             StorageManager::new(target_config.clone()).await?
         } else {
-            self.storage_managers.get(&transition.stage)
+            self.storage_managers
+                .get(&transition.stage)
                 .ok_or_else(|| PacsError::configuration("Target storage stage not configured"))?
                 .clone()
         };
@@ -305,7 +336,11 @@ impl LifecycleManager {
     }
 
     /// 更新下次转换时间
-    async fn update_next_transition_time(&mut self, file_path: &str, status: &mut LifecycleStatus) -> Result<()> {
+    async fn update_next_transition_time(
+        &mut self,
+        file_path: &str,
+        status: &mut LifecycleStatus,
+    ) -> Result<()> {
         let applicable_rules = self.get_applicable_rules(file_path, status)?;
 
         let mut next_time: Option<DateTime<Utc>> = None;
@@ -313,7 +348,8 @@ impl LifecycleManager {
         for rule in applicable_rules {
             for transition in &rule.transitions {
                 if transition.stage != status.current_stage {
-                    let transition_time = status.created_at + Duration::days(transition.days_after_creation as i64);
+                    let transition_time =
+                        status.created_at + Duration::days(transition.days_after_creation as i64);
 
                     if next_time.is_none() || transition_time < next_time.unwrap() {
                         next_time = Some(transition_time);
@@ -383,7 +419,11 @@ impl LifecycleManager {
     async fn remove_file(&self, file_path: &str) -> Result<()> {
         // 从所有存储阶段删除文件
         for (stage, storage_manager) in &self.storage_managers {
-            if storage_manager.file_exists(file_path).await.unwrap_or(false) {
+            if storage_manager
+                .file_exists(file_path)
+                .await
+                .unwrap_or(false)
+            {
                 storage_manager.delete_file(file_path).await?;
                 debug!("Removed file from {:?} storage: {}", stage, file_path);
             }
@@ -417,13 +457,11 @@ impl LifecycleManager {
                         min_size_bytes: None,
                         max_size_bytes: None,
                     },
-                    transitions: vec![
-                        LifecycleTransition {
-                            stage: LifecycleStage::Nearline,
-                            days_after_creation: 90,
-                            target_storage: None,
-                        }
-                    ],
+                    transitions: vec![LifecycleTransition {
+                        stage: LifecycleStage::Nearline,
+                        days_after_creation: 90,
+                        target_storage: None,
+                    }],
                     enabled: true,
                 },
                 LifecycleRule {
@@ -436,13 +474,11 @@ impl LifecycleManager {
                         min_size_bytes: None,
                         max_size_bytes: None,
                     },
-                    transitions: vec![
-                        LifecycleTransition {
-                            stage: LifecycleStage::Archive,
-                            days_after_creation: 365,
-                            target_storage: None,
-                        }
-                    ],
+                    transitions: vec![LifecycleTransition {
+                        stage: LifecycleStage::Archive,
+                        days_after_creation: 365,
+                        target_storage: None,
+                    }],
                     enabled: true,
                 },
                 LifecycleRule {
@@ -455,13 +491,11 @@ impl LifecycleManager {
                         min_size_bytes: None,
                         max_size_bytes: None,
                     },
-                    transitions: vec![
-                        LifecycleTransition {
-                            stage: LifecycleStage::PendingDeletion,
-                            days_after_creation: 2555, // 7 years
-                            target_storage: None,
-                        }
-                    ],
+                    transitions: vec![LifecycleTransition {
+                        stage: LifecycleStage::PendingDeletion,
+                        days_after_creation: 2555, // 7 years
+                        target_storage: None,
+                    }],
                     enabled: true,
                 },
             ],

@@ -58,8 +58,11 @@ impl DicomValidator {
         // 9. 验证UID格式
         self.validate_uid_format(obj, &mut result);
 
-        info!("DICOM对象验证完成: {} 个错误, {} 个警告",
-              result.errors.len(), result.warnings.len());
+        info!(
+            "DICOM对象验证完成: {} 个错误, {} 个警告",
+            result.errors.len(),
+            result.warnings.len()
+        );
 
         result
     }
@@ -195,7 +198,10 @@ impl DicomValidator {
     /// 验证传输语法
     fn validate_transfer_syntax(&self, obj: &ParsedDicomObject, result: &mut ValidationResult) {
         if let Some(transfer_syntax_uid) = &obj.transfer_syntax_uid {
-            if !self.transfer_syntax_manager.is_supported(transfer_syntax_uid) {
+            if !self
+                .transfer_syntax_manager
+                .is_supported(transfer_syntax_uid)
+            {
                 result.add_error(format!("不支持的传输语法: {}", transfer_syntax_uid));
             } else {
                 debug!("传输语法验证通过: {}", transfer_syntax_uid);
@@ -227,8 +233,8 @@ impl DicomValidator {
 
         // 检查像素数据相关字段
         if let (Some(bits_allocated), Some(bits_stored), Some(high_bit)) =
-            (obj.bits_allocated, obj.bits_stored, obj.high_bit) {
-
+            (obj.bits_allocated, obj.bits_stored, obj.high_bit)
+        {
             if bits_stored > bits_allocated {
                 result.add_error("存储位数不能大于分配位数".to_string());
             }
@@ -260,9 +266,7 @@ impl DicomValidator {
         }
 
         // 验证所有时间字段
-        let time_fields = [
-            ("检查时间", &obj.study_time),
-        ];
+        let time_fields = [("检查时间", &obj.study_time)];
 
         for (name, time_field) in time_fields {
             if let Some(time) = time_field {
@@ -358,7 +362,8 @@ impl DicomValidator {
 
         if time_without_fraction.len() >= 6 {
             let second = time_without_fraction[4..6].parse::<u32>();
-            if second.is_err() || second.unwrap() > 60 { // 允许60秒（闰秒）
+            if second.is_err() || second.unwrap() > 60 {
+                // 允许60秒（闰秒）
                 return false;
             }
         }
@@ -394,10 +399,10 @@ impl DicomValidator {
     fn is_valid_modality(&self, modality: &str) -> bool {
         // 常见的DICOM模态代码
         let valid_modalities = [
-            "CR", "CT", "DX", "ES", "MG", "MR", "NM", "OT", "PT", "RF", "SC", "US", "XA",
-            "XC", "RTIMAGE", "RTDOSE", "RTSTRUCT", "RTPLAN", "RTRECORD", "HC", "ST", "SEG",
-            "VF", "BMD", "FID", "LEN", "DOC", "REG", "OAM", "OP", "OPT", "OPR", "PLAN",
-            "RTION", "RWV", "SEG", "SMR", "TID", "VA", "XC", "XRT"
+            "CR", "CT", "DX", "ES", "MG", "MR", "NM", "OT", "PT", "RF", "SC", "US", "XA", "XC",
+            "RTIMAGE", "RTDOSE", "RTSTRUCT", "RTPLAN", "RTRECORD", "HC", "ST", "SEG", "VF", "BMD",
+            "FID", "LEN", "DOC", "REG", "OAM", "OP", "OPT", "OPR", "PLAN", "RTION", "RWV", "SEG",
+            "SMR", "TID", "VA", "XC", "XRT",
         ];
 
         valid_modalities.contains(&modality)
@@ -465,7 +470,11 @@ impl ValidationResult {
                 "验证完全通过".to_string()
             }
         } else {
-            format!("验证失败：{} 个错误，{} 个警告", self.error_count(), self.warning_count())
+            format!(
+                "验证失败：{} 个错误，{} 个警告",
+                self.error_count(),
+                self.warning_count()
+            )
         }
     }
 
@@ -508,7 +517,7 @@ mod tests {
         assert!(!validator.is_valid_dicom_date("20230229")); // 非闰年
         assert!(!validator.is_valid_dicom_date("20231301")); // 无效月份
         assert!(!validator.is_valid_dicom_date("20230132")); // 无效日期
-        assert!(!validator.is_valid_dicom_date("2023011"));  // 长度错误
+        assert!(!validator.is_valid_dicom_date("2023011")); // 长度错误
     }
 
     #[test]

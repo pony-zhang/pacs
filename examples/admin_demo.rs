@@ -2,7 +2,7 @@
 //!
 //! 展示PACS系统管理和监控模块的各种功能
 
-use pacs_admin::{SystemManager, monitoring::*, alerting::*, logging::*, performance::*};
+use pacs_admin::{alerting::*, logging::*, monitoring::*, performance::*, SystemManager};
 use std::time::Duration;
 use tokio::time::sleep;
 
@@ -110,7 +110,8 @@ async fn demo_alerting(system_manager: &SystemManager) -> anyhow::Result<()> {
         operator: ComparisonOperator::GreaterThan,
         severity: AlertSeverity::Warning,
         duration: Duration::from_secs(300),
-        message_template: "CPU usage is ${current}%, exceeding threshold of ${threshold}%".to_string(),
+        message_template: "CPU usage is ${current}%, exceeding threshold of ${threshold}%"
+            .to_string(),
         enabled: true,
     };
 
@@ -224,7 +225,10 @@ async fn demo_logging(system_manager: &SystemManager) -> anyhow::Result<()> {
     };
 
     let filtered_logs = log_aggregator.query_logs(&filter).await?;
-    println!("\n🔍 查询结果（错误和警告日志）: {} 条", filtered_logs.len());
+    println!(
+        "\n🔍 查询结果（错误和警告日志）: {} 条",
+        filtered_logs.len()
+    );
 
     // 获取日志统计
     let log_stats = log_aggregator.get_log_stats(None).await?;
@@ -250,7 +254,10 @@ async fn demo_performance_analysis(system_manager: &SystemManager) -> anyhow::Re
         end: chrono::Utc::now(),
     };
 
-    match performance_monitor.generate_performance_report(time_range).await {
+    match performance_monitor
+        .generate_performance_report(time_range)
+        .await
+    {
         Ok(report) => {
             print_performance_report(&report);
         }
@@ -275,7 +282,14 @@ async fn demo_config_management(system_manager: &SystemManager) -> anyhow::Resul
     println!("  服务器名称: {}", config.server.name);
     println!("  监听端口: {}", config.server.port);
     println!("  数据库连接: {}", config.database.connection_string);
-    println!("  监控状态: {}", if config.monitoring.enabled { "启用" } else { "禁用" });
+    println!(
+        "  监控状态: {}",
+        if config.monitoring.enabled {
+            "启用"
+        } else {
+            "禁用"
+        }
+    );
 
     // 验证配置
     match config_manager.validate_config().await {
@@ -300,7 +314,10 @@ fn print_health_status(health_status: &HealthStatus) {
     println!("  检查时间: {}", health_status.timestamp);
 
     for (component_name, component_health) in &health_status.components {
-        println!("  {}: {:?} - {}", component_name, component_health.status, component_health.message);
+        println!(
+            "  {}: {:?} - {}",
+            component_name, component_health.status, component_health.message
+        );
         if let Some(response_time) = component_health.response_time {
             println!("    响应时间: {:?}", response_time);
         }
@@ -336,7 +353,12 @@ fn print_log_stats(log_stats: &LogStats) {
     if !log_stats.recent_errors.is_empty() {
         println!("  最近错误日志（{}条）:", log_stats.recent_errors.len());
         for (i, log) in log_stats.recent_errors.iter().take(3).enumerate() {
-            println!("    {}. [{}] {}", i + 1, log.timestamp.format("%H:%M:%S"), log.message);
+            println!(
+                "    {}. [{}] {}",
+                i + 1,
+                log.timestamp.format("%H:%M:%S"),
+                log.message
+            );
         }
     }
 }
@@ -345,7 +367,8 @@ fn print_log_stats(log_stats: &LogStats) {
 fn print_performance_metrics(metrics: &PerformanceMetrics) {
     println!("\n📊 性能指标:");
     println!("  CPU使用率: {:.1}%", metrics.cpu_usage);
-    println!("  内存使用: {:.1}% ({}GB / {}GB)",
+    println!(
+        "  内存使用: {:.1}% ({}GB / {}GB)",
         metrics.memory.usage_percent,
         metrics.memory.used_bytes as f64 / (1024.0 * 1024.0 * 1024.0),
         metrics.memory.total_bytes as f64 / (1024.0 * 1024.0 * 1024.0)
@@ -353,9 +376,15 @@ fn print_performance_metrics(metrics: &PerformanceMetrics) {
     println!("  磁盘使用: {:.1}%", metrics.disk_io.usage_percent);
     println!("  磁盘IOPS: {}", metrics.disk_io.iops);
     println!("  网络连接数: {}", metrics.network_io.connections);
-    println!("  数据库连接: {} 活跃, {} 空闲", metrics.database.active_connections, metrics.database.idle_connections);
+    println!(
+        "  数据库连接: {} 活跃, {} 空闲",
+        metrics.database.active_connections, metrics.database.idle_connections
+    );
     println!("  HTTP请求数: {}", metrics.application.http_requests);
-    println!("  平均响应时间: {:?}", metrics.application.avg_response_time);
+    println!(
+        "  平均响应时间: {:?}",
+        metrics.application.avg_response_time
+    );
     println!("  错误率: {:.2}%", metrics.application.error_rate);
 }
 
@@ -366,12 +395,14 @@ fn print_performance_report(report: &PerformanceReport) {
     println!("  总体健康状态: {:?}", report.overall_health);
 
     println!("  资源使用情况:");
-    println!("    CPU: 平均 {:.1}%, 最大 {:.1}%, 趋势: {:?}",
+    println!(
+        "    CPU: 平均 {:.1}%, 最大 {:.1}%, 趋势: {:?}",
         report.resource_analysis.cpu.avg_usage,
         report.resource_analysis.cpu.max_usage,
         report.resource_analysis.cpu.usage_trend
     );
-    println!("    内存: 平均 {:.1}%, 最大 {:.1}%, 趋势: {:?}",
+    println!(
+        "    内存: 平均 {:.1}%, 最大 {:.1}%, 趋势: {:?}",
         report.resource_analysis.memory.avg_usage,
         report.resource_analysis.memory.max_usage,
         report.resource_analysis.memory.usage_trend
@@ -380,21 +411,34 @@ fn print_performance_report(report: &PerformanceReport) {
     if !report.trends.is_empty() {
         println!("  性能趋势:");
         for trend in &report.trends {
-            println!("    {}: {:?} ({:.1}% 变化率)", trend.metric_name, trend.direction, trend.change_rate * 100.0);
+            println!(
+                "    {}: {:?} ({:.1}% 变化率)",
+                trend.metric_name,
+                trend.direction,
+                trend.change_rate * 100.0
+            );
         }
     }
 
     if !report.bottlenecks.is_empty() {
         println!("  识别的瓶颈:");
         for bottleneck in &report.bottlenecks {
-            println!("    {:?}: {:?} - {}", bottleneck.bottleneck_type, bottleneck.impact, bottleneck.description);
+            println!(
+                "    {:?}: {:?} - {}",
+                bottleneck.bottleneck_type, bottleneck.impact, bottleneck.description
+            );
         }
     }
 
     if !report.recommendations.is_empty() {
         println!("  优化建议:");
         for recommendation in &report.recommendations {
-            println!("    {:?}: {} ({})", recommendation.recommendation_type, recommendation.description, recommendation.expected_impact);
+            println!(
+                "    {:?}: {} ({})",
+                recommendation.recommendation_type,
+                recommendation.description,
+                recommendation.expected_impact
+            );
         }
     }
 }

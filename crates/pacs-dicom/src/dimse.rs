@@ -1,7 +1,7 @@
 //! DIMSE消息处理
 
+use bytes::{Buf, Bytes};
 use pacs_core::Result;
-use bytes::{Bytes, Buf};
 use std::io::Cursor;
 
 /// DIMSE消息解析器

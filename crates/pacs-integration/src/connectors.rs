@@ -39,11 +39,26 @@ pub enum ConnectorType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AuthenticationConfig {
     None,
-    BasicAuth { username: String, password: String },
-    ApiKey { key: String, header: Option<String> },
-    BearerToken { token: String },
-    OAuth2 { client_id: String, client_secret: String, token_url: String },
-    Certificate { cert_path: String, key_path: String },
+    BasicAuth {
+        username: String,
+        password: String,
+    },
+    ApiKey {
+        key: String,
+        header: Option<String>,
+    },
+    BearerToken {
+        token: String,
+    },
+    OAuth2 {
+        client_id: String,
+        client_secret: String,
+        token_url: String,
+    },
+    Certificate {
+        cert_path: String,
+        key_path: String,
+    },
 }
 
 /// 连接器状态
@@ -110,7 +125,10 @@ impl EmrConnector {
                     let patient_data = response.json().await?;
                     Ok(patient_data)
                 } else {
-                    Err(anyhow::anyhow!("Failed to query patient: {}", response.status()))
+                    Err(anyhow::anyhow!(
+                        "Failed to query patient: {}",
+                        response.status()
+                    ))
                 }
             } else {
                 Err(anyhow::anyhow!("Connector not configured"))
@@ -132,11 +150,15 @@ impl EmrConnector {
                 let response = request.send().await?;
                 if response.status().is_success() {
                     let result: serde_json::Value = response.json().await?;
-                    let order_id = result["order_id"].as_str()
+                    let order_id = result["order_id"]
+                        .as_str()
                         .ok_or_else(|| anyhow::anyhow!("No order_id in response"))?;
                     Ok(order_id.to_string())
                 } else {
-                    Err(anyhow::anyhow!("Failed to submit order: {}", response.status()))
+                    Err(anyhow::anyhow!(
+                        "Failed to submit order: {}",
+                        response.status()
+                    ))
                 }
             } else {
                 Err(anyhow::anyhow!("Connector not configured"))
@@ -155,24 +177,29 @@ impl EmrConnector {
             AuthenticationConfig::None => Ok(request),
             AuthenticationConfig::BasicAuth { username, password } => {
                 Ok(request.basic_auth(username, Some(password)))
-            },
+            }
             AuthenticationConfig::ApiKey { key, header } => {
                 let header_name = header.as_deref().unwrap_or("X-API-Key");
                 Ok(request.header(header_name, key))
-            },
-            AuthenticationConfig::BearerToken { token } => {
-                Ok(request.bearer_auth(token))
-            },
-            AuthenticationConfig::OAuth2 { client_id, client_secret, token_url: _ } => {
+            }
+            AuthenticationConfig::BearerToken { token } => Ok(request.bearer_auth(token)),
+            AuthenticationConfig::OAuth2 {
+                client_id,
+                client_secret,
+                token_url: _,
+            } => {
                 // TODO: 实现OAuth2流程
                 warn!("OAuth2 authentication not fully implemented");
                 Ok(request.header("X-Client-ID", client_id))
-            },
-            AuthenticationConfig::Certificate { cert_path: _, key_path: _ } => {
+            }
+            AuthenticationConfig::Certificate {
+                cert_path: _,
+                key_path: _,
+            } => {
                 // TODO: 实现证书认证
                 warn!("Certificate authentication not implemented");
                 Ok(request)
-            },
+            }
         }
     }
 }
@@ -202,11 +229,11 @@ impl Connector for EmrConnector {
                 self.status = ConnectorStatus::Connected;
                 info!("EMR connector {} connected successfully", self.name);
                 Ok(())
-            },
+            }
             Ok(false) => {
                 self.status = ConnectorStatus::Error("Connection test failed".to_string());
                 Err(anyhow::anyhow!("Connection test failed"))
-            },
+            }
             Err(e) => {
                 self.status = ConnectorStatus::Error(e.to_string());
                 Err(e)
@@ -312,7 +339,10 @@ impl Connector for CloudStorageConnector {
 
         // TODO: 初始化云存储客户端
         self.status = ConnectorStatus::Connected;
-        info!("Cloud Storage connector {} connected successfully", self.name);
+        info!(
+            "Cloud Storage connector {} connected successfully",
+            self.name
+        );
         Ok(())
     }
 
@@ -353,7 +383,11 @@ impl ConnectorManager {
     }
 
     /// 初始化连接器
-    pub async fn initialize_connector(&mut self, name: &str, config: ConnectorConfig) -> Result<()> {
+    pub async fn initialize_connector(
+        &mut self,
+        name: &str,
+        config: ConnectorConfig,
+    ) -> Result<()> {
         if let Some(connector) = self.connectors.get_mut(name) {
             connector.initialize(config).await
         } else {
@@ -368,16 +402,16 @@ impl ConnectorManager {
 
     /// 获取EMR连接器
     pub fn get_emr_connector(&self, name: &str) -> Option<&EmrConnector> {
-        self.connectors.get(name).and_then(|c| {
-            c.as_ref().as_any().downcast_ref::<EmrConnector>()
-        })
+        self.connectors
+            .get(name)
+            .and_then(|c| c.as_ref().as_any().downcast_ref::<EmrConnector>())
     }
 
     /// 获取云存储连接器
     pub fn get_cloud_storage_connector(&self, name: &str) -> Option<&CloudStorageConnector> {
-        self.connectors.get(name).and_then(|c| {
-            c.as_ref().as_any().downcast_ref::<CloudStorageConnector>()
-        })
+        self.connectors
+            .get(name)
+            .and_then(|c| c.as_ref().as_any().downcast_ref::<CloudStorageConnector>())
     }
 
     /// 列出所有连接器状态

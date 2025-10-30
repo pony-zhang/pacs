@@ -1,7 +1,7 @@
 //! 数据库连接管理
 
-use sqlx::{PgPool, postgres::PgPoolOptions};
 use pacs_core::{PacsError, Result};
+use sqlx::{postgres::PgPoolOptions, PgPool};
 use std::time::Duration;
 
 /// 数据库连接池

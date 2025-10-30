@@ -178,11 +178,7 @@ impl WebhookManager {
             return Err(anyhow::anyhow!("No valid event types specified"));
         }
 
-        let subscription = WebhookSubscription::new(
-            request.url,
-            events,
-            request.secret,
-        );
+        let subscription = WebhookSubscription::new(request.url, events, request.secret);
 
         let subscription_id = subscription.id.clone();
         let mut subscriptions = self.subscriptions.write().await;
@@ -199,7 +195,10 @@ impl WebhookManager {
             info!("Removed webhook subscription: {}", subscription_id);
             Ok(())
         } else {
-            Err(anyhow::anyhow!("Subscription not found: {}", subscription_id))
+            Err(anyhow::anyhow!(
+                "Subscription not found: {}",
+                subscription_id
+            ))
         }
     }
 
@@ -224,7 +223,10 @@ impl WebhookManager {
             .collect();
 
         if interested_subscriptions.is_empty() {
-            debug!("No subscriptions interested in event: {}", event.event_type.as_str());
+            debug!(
+                "No subscriptions interested in event: {}",
+                event.event_type.as_str()
+            );
             return Ok(());
         }
 
@@ -237,9 +239,10 @@ impl WebhookManager {
             let payload = payload.clone();
             let client = self.client.clone();
 
-            let handle = tokio::spawn(async move {
-                Self::send_webhook(&client, &subscription, &payload).await
-            });
+            let handle =
+                tokio::spawn(
+                    async move { Self::send_webhook(&client, &subscription, &payload).await },
+                );
             handles.push(handle);
         }
 
@@ -277,10 +280,13 @@ impl WebhookManager {
                     Ok(())
                 } else {
                     let status = response.status();
-                    error!("Webhook failed with status {}: {}", status, subscription.url);
+                    error!(
+                        "Webhook failed with status {}: {}",
+                        status, subscription.url
+                    );
                     Err(anyhow::anyhow!("Webhook failed with status: {}", status))
                 }
-            },
+            }
             Err(e) => {
                 error!("Failed to send webhook to {}: {}", subscription.url, e);
                 Err(anyhow::anyhow!("Failed to send webhook: {}", e))

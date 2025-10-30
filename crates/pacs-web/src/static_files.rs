@@ -9,7 +9,7 @@ use pacs_core::Result;
 use std::path::PathBuf;
 use tokio::fs;
 use tower_http::services::ServeDir;
-use tracing::{info, error};
+use tracing::{error, info};
 
 /// 静态文件配置
 pub struct StaticFileConfig {
@@ -38,8 +38,7 @@ pub fn create_static_service() -> ServeDir {
     // 创建一些基础静态文件
     create_default_static_files();
 
-    ServeDir::new("static")
-        .append_index_html_on_directories(true)
+    ServeDir::new("static").append_index_html_on_directories(true)
 }
 
 /// 创建默认的静态文件
@@ -302,7 +301,9 @@ pub async fn serve_static_file(Path(file_path): Path<String>) -> Result<impl Int
 
     // 安全检查：确保路径不会跳出static目录
     if !full_path.starts_with("static") {
-        return Err(pacs_core::error::PacsError::Validation("Invalid file path".to_string()));
+        return Err(pacs_core::error::PacsError::Validation(
+            "Invalid file path".to_string(),
+        ));
     }
 
     // 尝试读取文件
@@ -317,7 +318,9 @@ pub async fn serve_static_file(Path(file_path): Path<String>) -> Result<impl Int
         }
         Err(_) => {
             // 文件不存在，返回404
-            Err(pacs_core::error::PacsError::NotFound("File not found".to_string()))
+            Err(pacs_core::error::PacsError::NotFound(
+                "File not found".to_string(),
+            ))
         }
     }
 }

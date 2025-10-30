@@ -6,15 +6,22 @@
 //! - 工作列表管理：为不同角色用户提供个性化的任务列表
 //! - 危急值处理：确保紧急情况能够及时通知相关人员
 
-pub mod engine;
-pub mod state_machine;
-pub mod routing;
-pub mod worklist;
 pub mod critical_value;
+pub mod engine;
+pub mod routing;
+pub mod state_machine;
+pub mod worklist;
 
 // 重新导出主要类型
+pub use critical_value::{
+    CriticalSeverity, CriticalValueEvent, CriticalValueProcessor, CriticalValueType,
+};
 pub use engine::{WorkflowEngine, WorkflowSystemOverview};
-pub use state_machine::{StudyStateMachine, StudyEvent};
-pub use routing::{RoutingEngine, RoutingRequest, RoutingPriority, RoutingResult, Radiologist, RadiologistSpecialty};
-pub use worklist::{WorkListManager, WorkItem, WorkItemStatus, WorkItemPriority, WorkListFilter, WorkListStats};
-pub use critical_value::{CriticalValueProcessor, CriticalValueEvent, CriticalValueType, CriticalSeverity};
+pub use routing::{
+    Radiologist, RadiologistSpecialty, RoutingEngine, RoutingPriority, RoutingRequest,
+    RoutingResult,
+};
+pub use state_machine::{StudyEvent, StudyStateMachine};
+pub use worklist::{
+    WorkItem, WorkItemPriority, WorkItemStatus, WorkListFilter, WorkListManager, WorkListStats,
+};

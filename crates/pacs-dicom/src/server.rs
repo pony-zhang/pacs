@@ -1,23 +1,23 @@
 //! DICOM服务器实现
 
-use pacs_core::{PacsError, Result};
 use crate::{
     association::{AssociationManager, PresentationContext, PresentationContextResult},
-    services::{ServiceManager, DicomService},
+    services::{DicomService, ServiceManager},
 };
+use pacs_core::{PacsError, Result};
+use std::net::SocketAddr;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio_util::codec::Decoder;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tracing::{info, error, debug};
-use std::net::SocketAddr;
+use tracing::{debug, error, info};
 
 /// DICOM服务器配置
 #[derive(Debug, Clone)]
 pub struct DicomServerConfig {
-    pub ae_title: String,           // 应用实体标题
-    pub port: u16,                  // 监听端口
-    pub max_associations: u32,      // 最大关联数
-    pub storage_dir: String,        // 存储目录
+    pub ae_title: String,      // 应用实体标题
+    pub port: u16,             // 监听端口
+    pub max_associations: u32, // 最大关联数
+    pub storage_dir: String,   // 存储目录
 }
 
 impl Default for DicomServerConfig {
@@ -56,7 +56,10 @@ impl DicomServer {
         let addr = SocketAddr::from(([0, 0, 0, 0], self.config.port));
         let listener = TcpListener::bind(addr).await?;
 
-        info!("DICOM服务器启动: AE={}, 地址={}", self.config.ae_title, addr);
+        info!(
+            "DICOM服务器启动: AE={}, 地址={}",
+            self.config.ae_title, addr
+        );
 
         loop {
             match listener.accept().await {
@@ -77,7 +80,11 @@ impl DicomServer {
     }
 
     /// 处理客户端连接
-    async fn handle_connection(&self, mut stream: TcpStream, remote_addr: SocketAddr) -> Result<()> {
+    async fn handle_connection(
+        &self,
+        mut stream: TcpStream,
+        remote_addr: SocketAddr,
+    ) -> Result<()> {
         debug!("处理DICOM连接: {}", remote_addr);
 
         // 简化实现：直接处理数据
@@ -107,7 +114,8 @@ impl DicomServer {
 
     /// 注册自定义DICOM服务
     pub fn register_service(&mut self, sop_class_uid: String, service: Box<dyn DicomService>) {
-        self.service_manager.register_service(sop_class_uid, service);
+        self.service_manager
+            .register_service(sop_class_uid, service);
     }
 }
 

@@ -2,8 +2,8 @@
 //!
 //! 提供多种DICOM传输语法的支持和处理功能
 
-use pacs_core::{PacsError, Result};
 use dicom::encoding::TransferSyntax;
+use pacs_core::{PacsError, Result};
 use tracing::warn;
 
 /// DICOM传输语法管理器
@@ -25,19 +25,25 @@ impl TransferSyntaxManager {
     pub fn get_transfer_syntax(&self, uid: &str) -> Result<TransferSyntax> {
         // 简化实现，暂时不创建实际的TransferSyntax对象
         match uid {
-            "1.2.840.10008.1.2.1" | "1.2.840.10008.1.2" | "1.2.840.10008.1.2.2" => {
-                Err(PacsError::DicomParseError("传输语法对象创建暂未实现".to_string()))
-            }
+            "1.2.840.10008.1.2.1" | "1.2.840.10008.1.2" | "1.2.840.10008.1.2.2" => Err(
+                PacsError::DicomParseError("传输语法对象创建暂未实现".to_string()),
+            ),
             _ => {
                 warn!("不支持的传输语法: {}", uid);
-                Err(PacsError::DicomParseError(format!("不支持的传输语法: {}", uid)))
+                Err(PacsError::DicomParseError(format!(
+                    "不支持的传输语法: {}",
+                    uid
+                )))
             }
         }
     }
 
     /// 检查传输语法是否支持
     pub fn is_supported(&self, uid: &str) -> bool {
-        matches!(uid, "1.2.840.10008.1.2.1" | "1.2.840.10008.1.2" | "1.2.840.10008.1.2.2")
+        matches!(
+            uid,
+            "1.2.840.10008.1.2.1" | "1.2.840.10008.1.2" | "1.2.840.10008.1.2.2"
+        )
     }
 
     /// 获取所有支持的传输语法
@@ -53,15 +59,15 @@ impl TransferSyntaxManager {
     pub fn is_compressed(&self, uid: &str) -> Result<bool> {
         // 检查是否为压缩的传输语法
         let compressed_uids = [
-            "1.2.840.10008.1.2.4.50",  // JPEG Baseline
-            "1.2.840.10008.1.2.4.51",  // JPEG Extended
-            "1.2.840.10008.1.2.4.57",  // JPEG Lossless
-            "1.2.840.10008.1.2.4.70",  // JPEG Lossless SV1
-            "1.2.840.10008.1.2.4.80",  // JPEG-LS Lossless
-            "1.2.840.10008.1.2.4.81",  // JPEG-LS Near Lossless
-            "1.2.840.10008.1.2.4.90",  // JPEG 2000 Lossless
-            "1.2.840.10008.1.2.4.91",  // JPEG 2000
-            "1.2.840.10008.1.2.5",     // RLE Lossless
+            "1.2.840.10008.1.2.4.50", // JPEG Baseline
+            "1.2.840.10008.1.2.4.51", // JPEG Extended
+            "1.2.840.10008.1.2.4.57", // JPEG Lossless
+            "1.2.840.10008.1.2.4.70", // JPEG Lossless SV1
+            "1.2.840.10008.1.2.4.80", // JPEG-LS Lossless
+            "1.2.840.10008.1.2.4.81", // JPEG-LS Near Lossless
+            "1.2.840.10008.1.2.4.90", // JPEG 2000 Lossless
+            "1.2.840.10008.1.2.4.91", // JPEG 2000
+            "1.2.840.10008.1.2.5",    // RLE Lossless
         ];
 
         Ok(compressed_uids.contains(&uid))
@@ -89,7 +95,8 @@ impl TransferSyntaxManager {
             name: self.get_transfer_syntax_name(uid),
             is_compressed: self.is_compressed(uid)?,
             is_implicit_vr: self.is_implicit_vr_little_endian(uid)?,
-            is_explicit_vr: self.is_explicit_vr_little_endian(uid)? || self.is_explicit_vr_big_endian(uid)?,
+            is_explicit_vr: self.is_explicit_vr_little_endian(uid)?
+                || self.is_explicit_vr_big_endian(uid)?,
             is_big_endian: self.is_explicit_vr_big_endian(uid)?,
         })
     }
@@ -103,7 +110,9 @@ impl TransferSyntaxManager {
             "1.2.840.10008.1.2.4.50" => "JPEG Baseline (Process 1)".to_string(),
             "1.2.840.10008.1.2.4.51" => "JPEG Extended (Process 2 & 4)".to_string(),
             "1.2.840.10008.1.2.4.57" => "JPEG Lossless (Process 14)".to_string(),
-            "1.2.840.10008.1.2.4.70" => "JPEG Lossless, Non-Hierarchical, First-Order Prediction".to_string(),
+            "1.2.840.10008.1.2.4.70" => {
+                "JPEG Lossless, Non-Hierarchical, First-Order Prediction".to_string()
+            }
             "1.2.840.10008.1.2.4.80" => "JPEG-LS Lossless Image Compression".to_string(),
             "1.2.840.10008.1.2.4.81" => "JPEG-LS Near Lossless Image Compression".to_string(),
             "1.2.840.10008.1.2.4.90" => "JPEG 2000 Image Compression (Lossless Only)".to_string(),
@@ -231,7 +240,9 @@ mod tests {
     fn test_transfer_syntax_info() {
         let manager = TransferSyntaxManager::new();
 
-        let info = manager.get_transfer_syntax_info(transfer_syntax_uids::IMPLICIT_VR_LITTLE_ENDIAN).unwrap();
+        let info = manager
+            .get_transfer_syntax_info(transfer_syntax_uids::IMPLICIT_VR_LITTLE_ENDIAN)
+            .unwrap();
         assert_eq!(info.uid, transfer_syntax_uids::IMPLICIT_VR_LITTLE_ENDIAN);
         assert!(info.is_implicit_vr);
         assert!(!info.is_compressed);
@@ -239,10 +250,18 @@ mod tests {
 
     #[test]
     fn test_utils() {
-        assert!(utils::is_valid_transfer_syntax(transfer_syntax_uids::IMPLICIT_VR_LITTLE_ENDIAN));
+        assert!(utils::is_valid_transfer_syntax(
+            transfer_syntax_uids::IMPLICIT_VR_LITTLE_ENDIAN
+        ));
         assert!(!utils::is_valid_transfer_syntax("invalid.uid"));
 
-        assert_eq!(utils::get_recommended_transfer_syntax(), transfer_syntax_uids::EXPLICIT_VR_LITTLE_ENDIAN);
-        assert_eq!(utils::get_most_compatible_transfer_syntax(), transfer_syntax_uids::IMPLICIT_VR_LITTLE_ENDIAN);
+        assert_eq!(
+            utils::get_recommended_transfer_syntax(),
+            transfer_syntax_uids::EXPLICIT_VR_LITTLE_ENDIAN
+        );
+        assert_eq!(
+            utils::get_most_compatible_transfer_syntax(),
+            transfer_syntax_uids::IMPLICIT_VR_LITTLE_ENDIAN
+        );
     }
 }

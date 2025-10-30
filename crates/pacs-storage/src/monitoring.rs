@@ -1,14 +1,14 @@
 //! 存储空间监控
 
+use crate::storage::{StorageConfig, StorageManager, StorageStats, StorageType};
+use chrono::{DateTime, Duration, Utc};
 use pacs_core::{PacsError, Result};
-use crate::storage::{StorageManager, StorageConfig, StorageType, StorageStats};
-use chrono::{DateTime, Utc, Duration};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tokio::time::{interval, sleep};
-use tracing::{info, warn, error, debug};
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use tokio::time::{interval, sleep};
+use tracing::{debug, error, info, warn};
 
 /// 监控指标类型
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -199,9 +199,14 @@ impl StorageMonitor {
 
     /// 启动监控
     pub async fn start_monitoring(&self) -> Result<()> {
-        info!("Starting storage monitoring with interval: {} seconds", self.config.interval_seconds);
+        info!(
+            "Starting storage monitoring with interval: {} seconds",
+            self.config.interval_seconds
+        );
 
-        let mut interval = interval(tokio::time::Duration::from_secs(self.config.interval_seconds));
+        let mut interval = interval(tokio::time::Duration::from_secs(
+            self.config.interval_seconds,
+        ));
 
         loop {
             interval.tick().await;
@@ -236,7 +241,9 @@ impl StorageMonitor {
                         name: "storage_usage".to_string(),
                         metric_type: MetricType::StorageUsage,
                         value: if stats.total_size > 0 {
-                            (stats.total_size as f64 - stats.available_space.unwrap_or(0) as f64) / stats.total_size as f64 * 100.0
+                            (stats.total_size as f64 - stats.available_space.unwrap_or(0) as f64)
+                                / stats.total_size as f64
+                                * 100.0
                         } else {
                             0.0
                         },
@@ -245,7 +252,10 @@ impl StorageMonitor {
                         labels: {
                             let mut labels = HashMap::new();
                             labels.insert("storage_name".to_string(), name.clone());
-                            labels.insert("storage_type".to_string(), format!("{:?}", storage_manager.storage_type()));
+                            labels.insert(
+                                "storage_type".to_string(),
+                                format!("{:?}", storage_manager.storage_type()),
+                            );
                             labels
                         },
                     };
@@ -377,7 +387,8 @@ impl StorageMonitor {
 
             // 检查是否触发告警
             let latest_metric = recent_metrics[recent_metrics.len() - 1];
-            let triggered = self.evaluate_condition(latest_metric.value, rule.threshold, &rule.operator);
+            let triggered =
+                self.evaluate_condition(latest_metric.value, rule.threshold, &rule.operator);
 
             let alert_id = format!("{}_{}", rule.name, latest_metric.timestamp.timestamp());
 
@@ -388,18 +399,20 @@ impl StorageMonitor {
                         id: alert_id.clone(),
                         rule_name: rule.name.clone(),
                         level: rule.level.clone(),
-                        message: format!("{} threshold breached: {} {} {}",
-                                       rule.name,
-                                       latest_metric.value,
-                                       match rule.operator {
-                                           ComparisonOperator::GreaterThan => ">",
-                                           ComparisonOperator::GreaterThanOrEqual => ">=",
-                                           ComparisonOperator::LessThan => "<",
-                                           ComparisonOperator::LessThanOrEqual => "<=",
-                                           ComparisonOperator::Equal => "=",
-                                           ComparisonOperator::NotEqual => "!=",
-                                       },
-                                       rule.threshold),
+                        message: format!(
+                            "{} threshold breached: {} {} {}",
+                            rule.name,
+                            latest_metric.value,
+                            match rule.operator {
+                                ComparisonOperator::GreaterThan => ">",
+                                ComparisonOperator::GreaterThanOrEqual => ">=",
+                                ComparisonOperator::LessThan => "<",
+                                ComparisonOperator::LessThanOrEqual => "<=",
+                                ComparisonOperator::Equal => "=",
+                                ComparisonOperator::NotEqual => "!=",
+                            },
+                            rule.threshold
+                        ),
                         current_value: latest_metric.value,
                         threshold: rule.threshold,
                         start_time: latest_metric.timestamp,
@@ -424,7 +437,12 @@ impl StorageMonitor {
     }
 
     /// 评估条件
-    fn evaluate_condition(&self, current_value: f64, threshold: f64, operator: &ComparisonOperator) -> bool {
+    fn evaluate_condition(
+        &self,
+        current_value: f64,
+        threshold: f64,
+        operator: &ComparisonOperator,
+    ) -> bool {
         match operator {
             ComparisonOperator::GreaterThan => current_value > threshold,
             ComparisonOperator::GreaterThanOrEqual => current_value >= threshold,
@@ -458,7 +476,8 @@ impl StorageMonitor {
         for (alert_id, alert) in active_alerts_guard.iter() {
             if !alert.active {
                 if let Some(end_time) = alert.end_time {
-                    if Utc::now() - end_time > Duration::hours(24) { // 保留已解决告警24小时
+                    if Utc::now() - end_time > Duration::hours(24) {
+                        // 保留已解决告警24小时
                         alerts_to_remove.push(alert_id.clone());
                     }
                 }
@@ -495,7 +514,11 @@ impl StorageMonitor {
     }
 
     /// 获取最近的指标
-    pub async fn get_recent_metrics(&self, metric_type: &MetricType, duration_hours: u64) -> Result<Vec<Metric>> {
+    pub async fn get_recent_metrics(
+        &self,
+        metric_type: &MetricType,
+        duration_hours: u64,
+    ) -> Result<Vec<Metric>> {
         let cutoff_time = Utc::now() - Duration::hours(duration_hours as i64);
         let metrics_guard = self.metrics_history.read().await;
 
@@ -523,7 +546,7 @@ impl StorageMonitor {
     /// 创建默认监控配置
     pub fn create_default_config() -> MonitoringConfig {
         MonitoringConfig {
-            interval_seconds: 300, // 5分钟
+            interval_seconds: 300,   // 5分钟
             retention_hours: 24 * 7, // 7天
             enable_performance_monitoring: true,
             alert_rules: vec![

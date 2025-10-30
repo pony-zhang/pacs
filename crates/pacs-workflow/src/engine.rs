@@ -3,10 +3,10 @@
 //! 协调状态机、路由、工作列表和危急值处理的核心引擎
 
 use crate::{
-    critical_value::{CriticalValueProcessor, CriticalValueType, CriticalSeverity},
-    routing::{RoutingEngine, RoutingRequest, RoutingPriority},
-    state_machine::{StudyStateMachine, StudyEvent},
-    worklist::{WorkListManager, WorkItemPriority, WorkItemStatus},
+    critical_value::{CriticalSeverity, CriticalValueProcessor, CriticalValueType},
+    routing::{RoutingEngine, RoutingPriority, RoutingRequest},
+    state_machine::{StudyEvent, StudyStateMachine},
+    worklist::{WorkItemPriority, WorkItemStatus, WorkListManager},
 };
 use pacs_core::{Result, Study, StudyStatus};
 use uuid::Uuid;
@@ -34,14 +34,25 @@ impl WorkflowEngine {
     }
 
     /// 处理新的检查
-    pub async fn process_new_study(&mut self, study: Study, priority: RoutingPriority) -> Result<()> {
-        tracing::info!("Processing new study {} with priority {:?}", study.id, priority);
+    pub async fn process_new_study(
+        &mut self,
+        study: Study,
+        priority: RoutingPriority,
+    ) -> Result<()> {
+        tracing::info!(
+            "Processing new study {} with priority {:?}",
+            study.id,
+            priority
+        );
 
         // 1. 状态机处理 - 确保状态正确
         let current_status = &study.status;
         if current_status != &StudyStatus::Scheduled {
             // 如果不是预定状态，尝试转换
-            if self.state_machine.can_transition(current_status, &StudyEvent::Scheduled) {
+            if self
+                .state_machine
+                .can_transition(current_status, &StudyEvent::Scheduled)
+            {
                 // 这里应该更新数据库中的状态
                 tracing::debug!("Study {} status transitioned to Scheduled", study.id);
             }
@@ -67,8 +78,12 @@ impl WorkflowEngine {
                 None, // 无截止时间
             )?;
 
-            tracing::info!("Created work item {} for study {} assigned to {}",
-                work_item.id, study.id, radiologist_id);
+            tracing::info!(
+                "Created work item {} for study {} assigned to {}",
+                work_item.id,
+                study.id,
+                radiologist_id
+            );
 
             // 更新医生工作负载
             self.routing_engine.update_workload(radiologist_id, 1);
@@ -82,8 +97,12 @@ impl WorkflowEngine {
                 None,
             )?;
 
-            tracing::info!("Created work item {} for study {} in queue {}",
-                work_item.id, study.id, queue_name);
+            tracing::info!(
+                "Created work item {} for study {} in queue {}",
+                work_item.id,
+                study.id,
+                queue_name
+            );
         }
 
         Ok(())
@@ -102,7 +121,9 @@ impl WorkflowEngine {
         let new_status = self.state_machine.transition(&current_status, &event)?;
 
         // 2. 更新相关工作项
-        let work_item_ids: Vec<Uuid> = self.worklist_manager.get_study_work_items(study_id)
+        let work_item_ids: Vec<Uuid> = self
+            .worklist_manager
+            .get_study_work_items(study_id)
             .iter()
             .map(|item| item.id)
             .collect();
@@ -114,10 +135,12 @@ impl WorkflowEngine {
 
                 match event {
                     StudyEvent::Started => {
-                        self.worklist_manager.update_work_item_status(work_item_id, WorkItemStatus::InProgress)?;
+                        self.worklist_manager
+                            .update_work_item_status(work_item_id, WorkItemStatus::InProgress)?;
                     }
                     StudyEvent::Completed => {
-                        self.worklist_manager.update_work_item_status(work_item_id, WorkItemStatus::Completed)?;
+                        self.worklist_manager
+                            .update_work_item_status(work_item_id, WorkItemStatus::Completed)?;
 
                         // 减少医生工作负载
                         if let Some(radiologist_id) = radiologist_id {
@@ -125,7 +148,8 @@ impl WorkflowEngine {
                         }
                     }
                     StudyEvent::Canceled => {
-                        self.worklist_manager.update_work_item_status(work_item_id, WorkItemStatus::Rejected)?;
+                        self.worklist_manager
+                            .update_work_item_status(work_item_id, WorkItemStatus::Rejected)?;
 
                         // 减少医生工作负载
                         if let Some(radiologist_id) = radiologist_id {
@@ -137,7 +161,12 @@ impl WorkflowEngine {
             }
         }
 
-        tracing::info!("Study {} status updated from {:?} to {:?}", study_id, current_status, new_status);
+        tracing::info!(
+            "Study {} status updated from {:?} to {:?}",
+            study_id,
+            current_status,
+            new_status
+        );
         Ok(new_status)
     }
 
@@ -152,7 +181,11 @@ impl WorkflowEngine {
         severity: CriticalSeverity,
         clinical_context: Option<String>,
     ) -> Result<()> {
-        tracing::warn!("Creating critical value for study {} with severity {:?}", study_id, severity);
+        tracing::warn!(
+            "Creating critical value for study {} with severity {:?}",
+            study_id,
+            severity
+        );
 
         let _event = self.critical_processor.create_critical_value_event(
             study_id,
@@ -168,7 +201,10 @@ impl WorkflowEngine {
         self.critical_processor.process_notification_queue().await?;
 
         // 如果是高危紧急情况，可能需要自动提高路由优先级
-        if matches!(severity, CriticalSeverity::Critical | CriticalSeverity::High) {
+        if matches!(
+            severity,
+            CriticalSeverity::Critical | CriticalSeverity::High
+        ) {
             // TODO: 实现紧急路由逻辑
             tracing::warn!("High severity critical value detected - urgent routing required");
         }
@@ -177,23 +213,33 @@ impl WorkflowEngine {
     }
 
     /// 获取放射科医生的工作列表
-    pub fn get_radiologist_worklist(&self, radiologist_id: Uuid) -> Result<Vec<crate::worklist::WorkItem>> {
-        self.worklist_manager.get_radiologist_worklist(radiologist_id)
+    pub fn get_radiologist_worklist(
+        &self,
+        radiologist_id: Uuid,
+    ) -> Result<Vec<crate::worklist::WorkItem>> {
+        self.worklist_manager
+            .get_radiologist_worklist(radiologist_id)
     }
 
     /// 获取工作列表统计
-    pub fn get_worklist_stats(&self, radiologist_id: Option<Uuid>) -> crate::worklist::WorkListStats {
+    pub fn get_worklist_stats(
+        &self,
+        radiologist_id: Option<Uuid>,
+    ) -> crate::worklist::WorkListStats {
         self.worklist_manager.get_worklist_stats(radiologist_id)
     }
 
     /// 获取未确认的危急值事件
-    pub fn get_unacknowledged_critical_values(&self) -> Vec<&crate::critical_value::CriticalValueEvent> {
+    pub fn get_unacknowledged_critical_values(
+        &self,
+    ) -> Vec<&crate::critical_value::CriticalValueEvent> {
         self.critical_processor.get_unacknowledged_events()
     }
 
     /// 确认危急值
     pub fn acknowledge_critical_value(&mut self, event_id: Uuid, user_id: Uuid) -> Result<()> {
-        self.critical_processor.acknowledge_critical_value(event_id, user_id)
+        self.critical_processor
+            .acknowledge_critical_value(event_id, user_id)
     }
 
     /// 处理通知队列
@@ -253,19 +299,25 @@ impl WorkflowEngine {
 
     /// 手动分配工作项
     pub fn assign_work_item(&mut self, work_item_id: Uuid, radiologist_id: Uuid) -> Result<()> {
-        self.worklist_manager.assign_work_item(work_item_id, radiologist_id)?;
+        self.worklist_manager
+            .assign_work_item(work_item_id, radiologist_id)?;
         self.routing_engine.update_workload(radiologist_id, 1);
         Ok(())
     }
 
     /// 更新工作项状态
-    pub fn update_work_item_status(&mut self, work_item_id: Uuid, status: WorkItemStatus) -> Result<()> {
+    pub fn update_work_item_status(
+        &mut self,
+        work_item_id: Uuid,
+        status: WorkItemStatus,
+    ) -> Result<()> {
         // 获取工作项信息
         if let Some(work_item) = self.worklist_manager.get_work_item(work_item_id) {
             let old_status = work_item.status.clone();
             let radiologist_id = work_item.radiologist_id;
 
-            self.worklist_manager.update_work_item_status(work_item_id, status.clone())?;
+            self.worklist_manager
+                .update_work_item_status(work_item_id, status.clone())?;
 
             // 更新医生工作负载
             if let Some(radiologist_id) = radiologist_id {
@@ -278,11 +330,15 @@ impl WorkflowEngine {
                 };
 
                 if workload_delta != 0 {
-                    self.routing_engine.update_workload(radiologist_id, workload_delta);
+                    self.routing_engine
+                        .update_workload(radiologist_id, workload_delta);
                 }
             }
         } else {
-            return Err(pacs_core::PacsError::NotFound(format!("Work item {} not found", work_item_id)));
+            return Err(pacs_core::PacsError::NotFound(format!(
+                "Work item {} not found",
+                work_item_id
+            )));
         }
 
         Ok(())
@@ -303,19 +359,26 @@ impl WorkflowEngine {
     }
 
     /// 计算系统负载
-    fn calculate_system_load(&self, work_items: &[&crate::worklist::WorkItem], radiologists: &[&crate::routing::Radiologist]) -> f64 {
+    fn calculate_system_load(
+        &self,
+        work_items: &[&crate::worklist::WorkItem],
+        radiologists: &[&crate::routing::Radiologist],
+    ) -> f64 {
         if radiologists.is_empty() {
             return 1.0; // 无可用医生时负载为100%
         }
 
         let total_capacity: i32 = radiologists.iter().map(|r| r.max_workload).sum();
-        let current_workload: i32 = work_items.iter().map(|item| {
-            if let Some(radiologist_id) = item.radiologist_id {
-                self.routing_engine.get_workload(radiologist_id)
-            } else {
-                0
-            }
-        }).sum();
+        let current_workload: i32 = work_items
+            .iter()
+            .map(|item| {
+                if let Some(radiologist_id) = item.radiologist_id {
+                    self.routing_engine.get_workload(radiologist_id)
+                } else {
+                    0
+                }
+            })
+            .sum();
 
         if total_capacity == 0 {
             1.0

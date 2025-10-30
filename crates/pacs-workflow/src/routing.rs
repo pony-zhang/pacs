@@ -2,7 +2,7 @@
 //!
 //! 根据检查类型和医生专长自动分配任务
 
-use pacs_core::{Result, Study, PacsError};
+use pacs_core::{PacsError, Result, Study};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -10,14 +10,14 @@ use uuid::Uuid;
 /// 医生专长
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum RadiologistSpecialty {
-    General,        // 通用
-    Neuroradiology, // 神经放射学
+    General,         // 通用
+    Neuroradiology,  // 神经放射学
     Musculoskeletal, // 骨骼肌肉
-    Cardiac,        // 心脏
-    Abdominal,      // 腹部
-    Chest,          // 胸部
-    Pediatric,      // 儿科
-    Breast,         // 乳腺
+    Cardiac,         // 心脏
+    Abdominal,       // 腹部
+    Chest,           // 胸部
+    Pediatric,       // 儿科
+    Breast,          // 乳腺
 }
 
 /// 医生信息
@@ -44,21 +44,21 @@ pub struct RoutingRule {
 /// 规则条件
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum RuleCondition {
-    ModalityEquals(String),           // 检查类型等于
-    ModalityIn(Vec<String>),          // 检查类型在列表中
-    DescriptionContains(String),      // 描述包含
-    TimeRange(String, String),        // 时间范围
-    Emergency,                        // 紧急检查
-    Routine,                          // 常规检查
+    ModalityEquals(String),      // 检查类型等于
+    ModalityIn(Vec<String>),     // 检查类型在列表中
+    DescriptionContains(String), // 描述包含
+    TimeRange(String, String),   // 时间范围
+    Emergency,                   // 紧急检查
+    Routine,                     // 常规检查
 }
 
 /// 规则动作
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum RuleAction {
-    AssignToRadiologist(Uuid),       // 分配给特定医生
+    AssignToRadiologist(Uuid),               // 分配给特定医生
     AssignToSpecialty(RadiologistSpecialty), // 分配给专长组
-    QueueInPool(String),             // 加入特定队列
-    NotifyAdmin,                     // 通知管理员
+    QueueInPool(String),                     // 加入特定队列
+    NotifyAdmin,                             // 通知管理员
 }
 
 /// 路由请求
@@ -71,10 +71,10 @@ pub struct RoutingRequest {
 /// 路由优先级
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum RoutingPriority {
-    Emergency,  // 紧急
-    Urgent,     // 急
-    Routine,    // 常规
-    Low,        // 低优先级
+    Emergency, // 紧急
+    Urgent,    // 急
+    Routine,   // 常规
+    Low,       // 低优先级
 }
 
 /// 路由结果
@@ -136,7 +136,11 @@ impl RoutingEngine {
 
     /// 处理路由请求
     pub fn route_study(&mut self, request: RoutingRequest) -> Result<RoutingResult> {
-        tracing::info!("Routing study {} with priority {:?}", request.study.id, request.priority);
+        tracing::info!(
+            "Routing study {} with priority {:?}",
+            request.study.id,
+            request.priority
+        );
 
         // 遍历规则，找到匹配的第一个规则
         for rule in &self.rules {
@@ -154,7 +158,12 @@ impl RoutingEngine {
     }
 
     /// 评估规则条件
-    fn evaluate_conditions(&self, conditions: &[RuleCondition], study: &Study, priority: &RoutingPriority) -> bool {
+    fn evaluate_conditions(
+        &self,
+        conditions: &[RuleCondition],
+        study: &Study,
+        priority: &RoutingPriority,
+    ) -> bool {
         for condition in conditions {
             if !self.evaluate_condition(condition, study, priority) {
                 return false;
@@ -164,15 +173,20 @@ impl RoutingEngine {
     }
 
     /// 评估单个条件
-    fn evaluate_condition(&self, condition: &RuleCondition, study: &Study, priority: &RoutingPriority) -> bool {
+    fn evaluate_condition(
+        &self,
+        condition: &RuleCondition,
+        study: &Study,
+        priority: &RoutingPriority,
+    ) -> bool {
         match condition {
             RuleCondition::ModalityEquals(modality) => study.modality == *modality,
             RuleCondition::ModalityIn(modalities) => modalities.contains(&study.modality),
-            RuleCondition::DescriptionContains(keyword) => {
-                study.description.as_ref()
-                    .map(|desc| desc.to_lowercase().contains(&keyword.to_lowercase()))
-                    .unwrap_or(false)
-            }
+            RuleCondition::DescriptionContains(keyword) => study
+                .description
+                .as_ref()
+                .map(|desc| desc.to_lowercase().contains(&keyword.to_lowercase()))
+                .unwrap_or(false),
             RuleCondition::Emergency => matches!(priority, RoutingPriority::Emergency),
             RuleCondition::Routine => matches!(priority, RoutingPriority::Routine),
             RuleCondition::TimeRange(_, _) => {
@@ -194,10 +208,15 @@ impl RoutingEngine {
                             queue_name: None,
                             priority: request.priority.clone(),
                             rule_applied: Some(rule.id),
-                            reason: format!("Assigned to radiologist {} by rule {}", radiologist.name, rule.name),
+                            reason: format!(
+                                "Assigned to radiologist {} by rule {}",
+                                radiologist.name, rule.name
+                            ),
                         })
                     } else {
-                        Err(PacsError::RoutingError("Radiologist is not available".to_string()))
+                        Err(PacsError::RoutingError(
+                            "Radiologist is not available".to_string(),
+                        ))
                     }
                 } else {
                     Err(PacsError::RoutingError("Radiologist not found".to_string()))
@@ -211,40 +230,42 @@ impl RoutingEngine {
                     queue_name: None,
                     priority: request.priority.clone(),
                     rule_applied: Some(rule.id),
-                    reason: format!("Assigned to specialty {:?} by rule {}", specialty, rule.name),
+                    reason: format!(
+                        "Assigned to specialty {:?} by rule {}",
+                        specialty, rule.name
+                    ),
                 })
             }
-            RuleAction::QueueInPool(queue_name) => {
-                Ok(RoutingResult {
-                    study_id: request.study.id,
-                    assigned_to: None,
-                    queue_name: Some(queue_name.clone()),
-                    priority: request.priority.clone(),
-                    rule_applied: Some(rule.id),
-                    reason: format!("Queued in {} by rule {}", queue_name, rule.name),
-                })
-            }
-            RuleAction::NotifyAdmin => {
-                Ok(RoutingResult {
-                    study_id: request.study.id,
-                    assigned_to: None,
-                    queue_name: Some("admin_review".to_string()),
-                    priority: request.priority.clone(),
-                    rule_applied: Some(rule.id),
-                    reason: format!("Admin notification by rule {}", rule.name),
-                })
-            }
+            RuleAction::QueueInPool(queue_name) => Ok(RoutingResult {
+                study_id: request.study.id,
+                assigned_to: None,
+                queue_name: Some(queue_name.clone()),
+                priority: request.priority.clone(),
+                rule_applied: Some(rule.id),
+                reason: format!("Queued in {} by rule {}", queue_name, rule.name),
+            }),
+            RuleAction::NotifyAdmin => Ok(RoutingResult {
+                study_id: request.study.id,
+                assigned_to: None,
+                queue_name: Some("admin_review".to_string()),
+                priority: request.priority.clone(),
+                rule_applied: Some(rule.id),
+                reason: format!("Admin notification by rule {}", rule.name),
+            }),
         }
     }
 
     /// 为特定专长找到最佳医生
-    fn find_best_radiologist_for_specialty(&self, specialty: &RadiologistSpecialty) -> Option<Uuid> {
+    fn find_best_radiologist_for_specialty(
+        &self,
+        specialty: &RadiologistSpecialty,
+    ) -> Option<Uuid> {
         self.radiologists
             .iter()
             .filter(|(_, radiologist)| {
                 radiologist.is_available
-                && radiologist.specialties.contains(specialty)
-                && self.get_workload(radiologist.id) < radiologist.max_workload
+                    && radiologist.specialties.contains(specialty)
+                    && self.get_workload(radiologist.id) < radiologist.max_workload
             })
             .min_by_key(|(_, radiologist)| self.get_workload(radiologist.id))
             .map(|(id, _)| *id)
@@ -253,12 +274,17 @@ impl RoutingEngine {
     /// 默认路由逻辑
     fn default_routing(&self, request: &RoutingRequest) -> Result<RoutingResult> {
         // 找到工作量最小的通用放射科医生
-        let best_general_radiologist = self.find_best_radiologist_for_specialty(&RadiologistSpecialty::General);
+        let best_general_radiologist =
+            self.find_best_radiologist_for_specialty(&RadiologistSpecialty::General);
 
         Ok(RoutingResult {
             study_id: request.study.id,
             assigned_to: best_general_radiologist,
-            queue_name: if best_general_radiologist.is_none() { Some("general_pool".to_string()) } else { None },
+            queue_name: if best_general_radiologist.is_none() {
+                Some("general_pool".to_string())
+            } else {
+                None
+            },
             priority: request.priority.clone(),
             rule_applied: None,
             reason: "Default routing applied".to_string(),

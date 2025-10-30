@@ -13,9 +13,7 @@ use tracing_subscriber;
 #[tokio::main]
 async fn main() -> Result<()> {
     // 初始化日志
-    tracing_subscriber::fmt()
-        .with_env_filter("info")
-        .init();
+    tracing_subscriber::fmt().with_env_filter("info").init();
 
     info!("🚀 启动PACS集成模块简化演示");
 
@@ -47,7 +45,7 @@ PV1|1|I|ICU^^^1||||||ADM001^王医生^MD|||||||||1||A0||||||||||||||||||HOSPITAL
             // 生成ACK响应
             let ack = hl7_interface.generate_ack(&parsed_message, true, None);
             info!("   生成ACK消息长度: {} 字符", ack.len());
-        },
+        }
         Err(e) => {
             warn!("❌ HL7消息解析失败: {}", e);
         }
@@ -63,7 +61,7 @@ OBR|1|ORD12345||CT-ABDOMEN|腹部CT平扫|||||||||||||||||||||||||DR001^李医�
         Ok(parsed_message) => {
             info!("✅ ORM消息解析成功");
             info!("   检查类型: {:?}", parsed_message.message_type);
-        },
+        }
         Err(e) => {
             warn!("❌ ORM消息解析失败: {}", e);
         }

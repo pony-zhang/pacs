@@ -1,9 +1,9 @@
 //! PACS服务器主程序
 
+use clap::Parser;
 use pacs_core::Result;
 use pacs_dicom::{DicomServer, DicomServerConfig};
-use clap::Parser;
-use tracing::{info, error};
+use tracing::{error, info};
 use tracing_subscriber;
 
 /// PACS服务器命令行参数

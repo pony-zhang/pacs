@@ -2,13 +2,13 @@
 //!
 //! 展示工作流引擎的核心功能，包括状态转换、自动路由、工作列表管理和危急值处理
 
-use pacs_core::{Study, StudyStatus};
 use pacs_core::utils::generate_dicom_uid;
+use pacs_core::{Study, StudyStatus};
+use pacs_workflow::routing::{RoutingRule, RuleAction, RuleCondition};
 use pacs_workflow::{
-    WorkflowEngine, RoutingPriority, Radiologist, RadiologistSpecialty,
-    CriticalValueType, CriticalSeverity
+    CriticalSeverity, CriticalValueType, Radiologist, RadiologistSpecialty, RoutingPriority,
+    WorkflowEngine,
 };
-use pacs_workflow::routing::{RoutingRule, RuleCondition, RuleAction};
 use uuid::Uuid;
 
 #[tokio::main]
@@ -43,19 +43,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
 
         println!("📋 处理检查 {} (优先级: {:?})", study.id, priority);
-        workflow_engine.process_new_study(study.clone(), priority.clone()).await?;
+        workflow_engine
+            .process_new_study(study.clone(), priority.clone())
+            .await?;
     }
 
     // 5. 显示系统概览
     let overview = workflow_engine.get_system_overview();
     println!("\n📊 系统概览:");
     println!("   活跃工作项: {}", overview.total_active_work_items);
-    println!("   未确认危急值: {}", overview.total_unacknowledged_critical_values);
+    println!(
+        "   未确认危急值: {}",
+        overview.total_unacknowledged_critical_values
+    );
     println!("   可用医生数: {}", overview.available_radiologists_count);
     println!("   系统负载: {:.1}%", overview.system_load * 100.0);
 
     // 6. 显示医生工作列表
-    let available_radiologists = workflow_engine.routing_engine().get_available_radiologists();
+    let available_radiologists = workflow_engine
+        .routing_engine()
+        .get_available_radiologists();
     for radiologist in available_radiologists {
         let worklist = workflow_engine.get_radiologist_worklist(radiologist.id)?;
         let stats = workflow_engine.get_worklist_stats(Some(radiologist.id));
@@ -67,7 +74,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("   已完成: {}", stats.completed_items);
 
         for work_item in worklist {
-            println!("   - {} ({}): {:?}",
+            println!(
+                "   - {} ({}): {:?}",
                 work_item.id,
                 work_item.tags.join(", "),
                 work_item.status
@@ -77,12 +85,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 7. 模拟检查状态更新
     if let Some(study) = studies.first() {
-        println!("\n🔄 更新检查状态: {:?} -> {:?}", StudyStatus::Scheduled, StudyStatus::InProgress);
-        let new_status = workflow_engine.update_study_status(
-            study.id,
+        println!(
+            "\n🔄 更新检查状态: {:?} -> {:?}",
             StudyStatus::Scheduled,
-            pacs_workflow::state_machine::StudyEvent::Started
-        ).await?;
+            StudyStatus::InProgress
+        );
+        let new_status = workflow_engine
+            .update_study_status(
+                study.id,
+                StudyStatus::Scheduled,
+                pacs_workflow::state_machine::StudyEvent::Started,
+            )
+            .await?;
 
         println!("✅ 检查状态已更新为: {:?}", new_status);
     }
@@ -90,15 +104,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 8. 创建危急值事件
     if let Some(study) = studies.get(1) {
         println!("\n🚨 创建危急值事件");
-        workflow_engine.create_critical_value(
-            study.id,
-            study.patient_id,
-            CriticalValueType::Emergency,
-            "发现急性颅内出血".to_string(),
-            Uuid::new_v4(), // 检测者ID
-            CriticalSeverity::Critical,
-            Some("患者意识模糊，需要立即处理".to_string()),
-        ).await?;
+        workflow_engine
+            .create_critical_value(
+                study.id,
+                study.patient_id,
+                CriticalValueType::Emergency,
+                "发现急性颅内出血".to_string(),
+                Uuid::new_v4(), // 检测者ID
+                CriticalSeverity::Critical,
+                Some("患者意识模糊，需要立即处理".to_string()),
+            )
+            .await?;
 
         println!("✅ 危急值事件已创建");
     }
@@ -118,10 +134,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if !unacknowledged.is_empty() {
         println!("\n🚨 未确认的危急值事件:");
         for event in unacknowledged {
-            println!("   - 事件 {}: {} ({:?})",
-                event.id,
-                event.description,
-                event.severity
+            println!(
+                "   - 事件 {}: {} ({:?})",
+                event.id, event.description, event.severity
             );
         }
     }
@@ -131,12 +146,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// 设置医生信息
-fn setup_radiologists(workflow_engine: &mut WorkflowEngine) -> Result<(), Box<dyn std::error::Error>> {
+fn setup_radiologists(
+    workflow_engine: &mut WorkflowEngine,
+) -> Result<(), Box<dyn std::error::Error>> {
     // 神经放射科医生
     let neuro_radiologist = Radiologist {
         id: Uuid::new_v4(),
         name: "张医生".to_string(),
-        specialties: vec![RadiologistSpecialty::Neuroradiology, RadiologistSpecialty::General],
+        specialties: vec![
+            RadiologistSpecialty::Neuroradiology,
+            RadiologistSpecialty::General,
+        ],
         max_workload: 5,
         is_available: true,
     };
@@ -145,7 +165,10 @@ fn setup_radiologists(workflow_engine: &mut WorkflowEngine) -> Result<(), Box<dy
     let msk_radiologist = Radiologist {
         id: Uuid::new_v4(),
         name: "李医生".to_string(),
-        specialties: vec![RadiologistSpecialty::Musculoskeletal, RadiologistSpecialty::General],
+        specialties: vec![
+            RadiologistSpecialty::Musculoskeletal,
+            RadiologistSpecialty::General,
+        ],
         max_workload: 4,
         is_available: true,
     };
@@ -159,15 +182,23 @@ fn setup_radiologists(workflow_engine: &mut WorkflowEngine) -> Result<(), Box<dy
         is_available: true,
     };
 
-    workflow_engine.routing_engine_mut().add_radiologist(neuro_radiologist);
-    workflow_engine.routing_engine_mut().add_radiologist(msk_radiologist);
-    workflow_engine.routing_engine_mut().add_radiologist(general_radiologist);
+    workflow_engine
+        .routing_engine_mut()
+        .add_radiologist(neuro_radiologist);
+    workflow_engine
+        .routing_engine_mut()
+        .add_radiologist(msk_radiologist);
+    workflow_engine
+        .routing_engine_mut()
+        .add_radiologist(general_radiologist);
 
     Ok(())
 }
 
 /// 设置路由规则
-fn setup_routing_rules(workflow_engine: &mut WorkflowEngine) -> Result<(), Box<dyn std::error::Error>> {
+fn setup_routing_rules(
+    workflow_engine: &mut WorkflowEngine,
+) -> Result<(), Box<dyn std::error::Error>> {
     // 紧急CT扫描规则
     let emergency_ct_rule = RoutingRule {
         id: Uuid::new_v4(),
@@ -207,9 +238,15 @@ fn setup_routing_rules(workflow_engine: &mut WorkflowEngine) -> Result<(), Box<d
         is_active: true,
     };
 
-    workflow_engine.routing_engine_mut().add_rule(emergency_ct_rule);
-    workflow_engine.routing_engine_mut().add_rule(routine_xray_rule);
-    workflow_engine.routing_engine_mut().add_rule(mri_neuro_rule);
+    workflow_engine
+        .routing_engine_mut()
+        .add_rule(emergency_ct_rule);
+    workflow_engine
+        .routing_engine_mut()
+        .add_rule(routine_xray_rule);
+    workflow_engine
+        .routing_engine_mut()
+        .add_rule(mri_neuro_rule);
 
     Ok(())
 }

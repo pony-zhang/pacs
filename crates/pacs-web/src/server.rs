@@ -4,22 +4,24 @@ use axum::{
     extract::DefaultBodyLimit,
     http::StatusCode,
     response::IntoResponse,
-    routing::{get, post, put, delete},
+    routing::{delete, get, post, put},
     Router,
 };
 use pacs_core::Result;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use tower::ServiceBuilder;
 use tower_http::{
     cors::{Any, CorsLayer},
     trace::TraceLayer,
 };
 use tracing::info;
-use std::sync::Arc;
 
-use crate::handlers::{health, api_root, get_patients, get_studies, get_series, get_instances};
-use crate::wado::{qido_rs, wado_rs, stow_rs};
-use crate::auth::{AuthService, auth_middleware, login_handler, get_current_user, get_all_users_handler};
+use crate::auth::{
+    auth_middleware, get_all_users_handler, get_current_user, login_handler, AuthService,
+};
+use crate::handlers::{api_root, get_instances, get_patients, get_series, get_studies, health};
+use crate::wado::{qido_rs, stow_rs, wado_rs};
 
 pub struct WebServer {
     addr: SocketAddr,
@@ -39,7 +41,6 @@ impl WebServer {
             // 认证路由（无需token）
             .route("/auth/login", post(login_handler))
             .with_state(auth_service.clone())
-
             // 需要认证的路由
             .route("/auth/me", get(get_current_user))
             .with_state(auth_service.clone())
@@ -47,24 +48,18 @@ impl WebServer {
                 auth_service.clone(),
                 auth_middleware,
             ))
-
             // 根路径
             .route("/", get(api_root))
-
             // 健康检查
             .route("/health", get(health))
-
             // API路由
             .nest("/api/v1", api_routes())
             .with_state(auth_service.clone())
-
             // DICOMweb路由
             .nest("/dicom-web", dicom_web_routes())
             .with_state(auth_service.clone())
-
             // 静态文件服务
             .nest_service("/static", tower_http::services::ServeDir::new("static"))
-
             // 全局中间件
             .layer(
                 ServiceBuilder::new()
@@ -103,11 +98,13 @@ fn api_routes() -> Router<Arc<AuthService>> {
 /// DICOMweb 路由
 fn dicom_web_routes() -> Router<Arc<AuthService>> {
     Router::new()
-        .route("/search", get(qido_rs))        // QIDO-RS
-        .route("/retrieve/:study_uid", get(wado_rs))  // WADO-RS
+        .route("/search", get(qido_rs)) // QIDO-RS
+        .route("/retrieve/:study_uid", get(wado_rs)) // WADO-RS
         .route("/retrieve/:study_uid/:series_uid", get(wado_rs))
-        .route("/retrieve/:study_uid/:series_uid/:instance_uid", get(wado_rs))
-        .route("/store", post(stow_rs))        // STOW-RS
+        .route(
+            "/retrieve/:study_uid/:series_uid/:instance_uid",
+            get(wado_rs),
+        )
+        .route("/store", post(stow_rs)) // STOW-RS
         .route("/store/*path", post(stow_rs))
 }
-

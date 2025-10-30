@@ -7,11 +7,11 @@ use axum::{
     routing::get,
     Router,
 };
-use pacs_core::{Result, error::PacsError};
+use pacs_core::{error::PacsError, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 
 /// API根路径处理器
 pub async fn api_root() -> impl IntoResponse {
@@ -37,9 +37,7 @@ pub async fn health() -> impl IntoResponse {
 }
 
 /// 患者查询处理器
-pub async fn get_patients(
-    Query(params): Query<PatientQueryParams>,
-) -> Result<impl IntoResponse> {
+pub async fn get_patients(Query(params): Query<PatientQueryParams>) -> Result<impl IntoResponse> {
     info!("Getting patients with query: {:?}", params);
 
     // TODO: 实际从数据库查询患者数据
@@ -57,7 +55,7 @@ pub async fn get_patients(
             "patient_birth_date": "19900215",
             "patient_sex": "F",
             "study_count": 1
-        })
+        }),
     ];
 
     Ok(Json(json!({
@@ -69,9 +67,7 @@ pub async fn get_patients(
 }
 
 /// 检查查询处理器
-pub async fn get_studies(
-    Query(params): Query<StudyQueryParams>,
-) -> Result<impl IntoResponse> {
+pub async fn get_studies(Query(params): Query<StudyQueryParams>) -> Result<impl IntoResponse> {
     info!("Getting studies with query: {:?}", params);
 
     // TODO: 实际从数据库查询检查数据
@@ -99,7 +95,7 @@ pub async fn get_studies(
             "study_description": "MRI Brain",
             "series_count": 3,
             "instance_count": 180
-        })
+        }),
     ];
 
     Ok(Json(json!({
@@ -111,9 +107,7 @@ pub async fn get_studies(
 }
 
 /// 序列查询处理器
-pub async fn get_series(
-    Query(params): Query<SeriesQueryParams>,
-) -> Result<impl IntoResponse> {
+pub async fn get_series(Query(params): Query<SeriesQueryParams>) -> Result<impl IntoResponse> {
     info!("Getting series with query: {:?}", params);
 
     // TODO: 实际从数据库查询序列数据
@@ -139,7 +133,7 @@ pub async fn get_series(
             "instance_count": 125,
             "series_date": "20231015",
             "series_time": "143500"
-        })
+        }),
     ];
 
     Ok(Json(json!({
@@ -151,30 +145,26 @@ pub async fn get_series(
 }
 
 /// 实例查询处理器
-pub async fn get_instances(
-    Query(params): Query<InstanceQueryParams>,
-) -> Result<impl IntoResponse> {
+pub async fn get_instances(Query(params): Query<InstanceQueryParams>) -> Result<impl IntoResponse> {
     info!("Getting instances with query: {:?}", params);
 
     // TODO: 实际从数据库查询实例数据
-    let instances = vec![
-        json!({
-            "sop_instance_uid": "1.2.3.4.5.6.7.8.9.1.1.1",
-            "sop_class_uid": "1.2.840.10008.5.1.4.1.1.2", // CT Image Storage
-            "instance_number": "1",
-            "series_instance_uid": "1.2.3.4.5.6.7.8.9.1.1",
-            "study_instance_uid": "1.2.3.4.5.6.7.8.9.1",
-            "rows": 512,
-            "columns": 512,
-            "bits_allocated": 16,
-            "bits_stored": 12,
-            "high_bit": 11,
-            "pixel_representation": 0,
-            "photometric_interpretation": "MONOCHROME2",
-            "samples_per_pixel": 1,
-            "planar_configuration": 0
-        })
-    ];
+    let instances = vec![json!({
+        "sop_instance_uid": "1.2.3.4.5.6.7.8.9.1.1.1",
+        "sop_class_uid": "1.2.840.10008.5.1.4.1.1.2", // CT Image Storage
+        "instance_number": "1",
+        "series_instance_uid": "1.2.3.4.5.6.7.8.9.1.1",
+        "study_instance_uid": "1.2.3.4.5.6.7.8.9.1",
+        "rows": 512,
+        "columns": 512,
+        "bits_allocated": 16,
+        "bits_stored": 12,
+        "high_bit": 11,
+        "pixel_representation": 0,
+        "photometric_interpretation": "MONOCHROME2",
+        "samples_per_pixel": 1,
+        "planar_configuration": 0
+    })];
 
     Ok(Json(json!({
         "instances": instances,

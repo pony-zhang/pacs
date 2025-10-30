@@ -2,14 +2,14 @@
 //!
 //! 提供完整的DICOM文件解析和元数据提取功能
 
-use pacs_core::{PacsError, Result};
-use dicom::core::value::{Value, PrimitiveValue};
-use dicom::encoding::{TransferSyntax};
+use dicom::core::value::{PrimitiveValue, Value};
+use dicom::dictionary_std::tags;
+use dicom::encoding::TransferSyntax;
 use dicom::object::{open_file, DefaultDicomObject, InMemDicomObject};
-use dicom::dictionary_std::{tags};
+use pacs_core::{PacsError, Result};
 use std::io::Cursor;
-use tracing::{debug, info, warn, error};
 use std::path::Path;
+use tracing::{debug, error, info, warn};
 
 /// DICOM数据解析器
 pub struct DicomParser;
@@ -27,16 +27,17 @@ impl DicomParser {
     }
 
     /// 解析DICOM文件
-    pub async fn parse_file<P: AsRef<Path> + std::fmt::Debug>(file_path: P) -> Result<ParsedDicomObject> {
+    pub async fn parse_file<P: AsRef<Path> + std::fmt::Debug>(
+        file_path: P,
+    ) -> Result<ParsedDicomObject> {
         let file_path = file_path.as_ref();
         info!("开始解析DICOM文件: {:?}", file_path);
 
         // 使用dicom-rs解析文件
-        let obj = open_file(file_path)
-            .map_err(|e| {
-                error!("DICOM文件解析失败: {:?}", e);
-                PacsError::DicomParseError(format!("无法解析DICOM文件: {:?}", e))
-            })?;
+        let obj = open_file(file_path).map_err(|e| {
+            error!("DICOM文件解析失败: {:?}", e);
+            PacsError::DicomParseError(format!("无法解析DICOM文件: {:?}", e))
+        })?;
 
         debug!("成功解析DICOM文件，开始提取元数据");
         Self::extract_metadata(obj)
@@ -48,7 +49,9 @@ impl DicomParser {
 
         // 简化实现：暂时不支持字节数据直接解析
         // 可以先写入临时文件再解析，或者使用其他方法
-        Err(PacsError::DicomParseError("字节数据解析暂未实现，请使用parse_file方法".to_string()))
+        Err(PacsError::DicomParseError(
+            "字节数据解析暂未实现，请使用parse_file方法".to_string(),
+        ))
     }
 
     /// 验证DICOM文件完整性
@@ -115,7 +118,8 @@ impl DicomParser {
         // 提取设备信息
         parsed.institution_name = Self::get_string_element(&obj, tags::INSTITUTION_NAME);
         parsed.manufacturer = Self::get_string_element(&obj, tags::MANUFACTURER);
-        parsed.manufacturer_model_name = Self::get_string_element(&obj, tags::MANUFACTURER_MODEL_NAME);
+        parsed.manufacturer_model_name =
+            Self::get_string_element(&obj, tags::MANUFACTURER_MODEL_NAME);
 
         // 提取图像信息
         parsed.rows = Self::get_integer_element(&obj, tags::ROWS);
@@ -133,8 +137,10 @@ impl DicomParser {
         parsed.patient_weight = Self::get_string_element(&obj, tags::PATIENT_WEIGHT);
         parsed.body_part_examined = Self::get_string_element(&obj, tags::BODY_PART_EXAMINED);
 
-        info!("成功提取DICOM元数据，患者ID: {:?}, 检查UID: {:?}",
-              parsed.patient_id, parsed.study_instance_uid);
+        info!(
+            "成功提取DICOM元数据，患者ID: {:?}, 检查UID: {:?}",
+            parsed.patient_id, parsed.study_instance_uid
+        );
 
         Ok(parsed)
     }
@@ -142,16 +148,16 @@ impl DicomParser {
     /// 获取字符串类型元素的值
     fn get_string_element(obj: &DefaultDicomObject, tag: dicom::core::Tag) -> Option<String> {
         match obj.element(tag) {
-            Ok(element) => {
-                match element.value() {
-                    Value::Primitive(PrimitiveValue::Str(s)) => Some(s.to_string()),
-                    Value::Primitive(PrimitiveValue::Strs(strings)) => strings.first().map(|s| s.to_string()),
-                    _ => {
-                        debug!("标签 {:?} 不是字符串类型", tag);
-                        None
-                    }
+            Ok(element) => match element.value() {
+                Value::Primitive(PrimitiveValue::Str(s)) => Some(s.to_string()),
+                Value::Primitive(PrimitiveValue::Strs(strings)) => {
+                    strings.first().map(|s| s.to_string())
                 }
-            }
+                _ => {
+                    debug!("标签 {:?} 不是字符串类型", tag);
+                    None
+                }
+            },
             Err(_) => {
                 debug!("未找到标签: {:?}", tag);
                 None
@@ -162,18 +168,16 @@ impl DicomParser {
     /// 获取整数类型元素的值
     fn get_integer_element(obj: &DefaultDicomObject, tag: dicom::core::Tag) -> Option<i32> {
         match obj.element(tag) {
-            Ok(element) => {
-                match element.value() {
-                    Value::Primitive(PrimitiveValue::I32(i)) => i.iter().next().copied(),
-                    Value::Primitive(PrimitiveValue::U32(u)) => u.iter().next().map(|&v| v as i32),
-                    Value::Primitive(PrimitiveValue::I16(i)) => i.iter().next().map(|&v| v as i32),
-                    Value::Primitive(PrimitiveValue::U16(u)) => u.iter().next().map(|&v| v as i32),
-                    _ => {
-                        debug!("标签 {:?} 不是整数类型", tag);
-                        None
-                    }
+            Ok(element) => match element.value() {
+                Value::Primitive(PrimitiveValue::I32(i)) => i.iter().next().copied(),
+                Value::Primitive(PrimitiveValue::U32(u)) => u.iter().next().map(|&v| v as i32),
+                Value::Primitive(PrimitiveValue::I16(i)) => i.iter().next().map(|&v| v as i32),
+                Value::Primitive(PrimitiveValue::U16(u)) => u.iter().next().map(|&v| v as i32),
+                _ => {
+                    debug!("标签 {:?} 不是整数类型", tag);
+                    None
                 }
-            }
+            },
             Err(_) => {
                 debug!("未找到标签: {:?}", tag);
                 None
@@ -188,11 +192,14 @@ impl DicomParser {
         match transfer_syntax_uid {
             "1.2.840.10008.1.2.1" | "1.2.840.10008.1.2" | "1.2.840.10008.1.2.2" => {
                 // 返回一个默认的传输语法，实际应用中需要创建正确的TransferSyntax对象
-                Err(PacsError::DicomParseError("传输语法对象创建暂未实现".to_string()))
+                Err(PacsError::DicomParseError(
+                    "传输语法对象创建暂未实现".to_string(),
+                ))
             }
-            _ => {
-                Err(PacsError::DicomParseError(format!("不支持的传输语法: {}", transfer_syntax_uid)))
-            }
+            _ => Err(PacsError::DicomParseError(format!(
+                "不支持的传输语法: {}",
+                transfer_syntax_uid
+            ))),
         }
     }
 }

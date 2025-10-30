@@ -1,8 +1,8 @@
 //! DICOM关联管理
 
 use pacs_core::{PacsError, Result};
-use tracing::{debug, info};
 use std::net::SocketAddr;
+use tracing::{debug, info};
 
 /// DICOM关联信息
 #[derive(Debug, Clone)]
@@ -67,7 +67,8 @@ impl AssociationManager {
         };
 
         info!("建立DICOM关联: {:?}", association_info);
-        self.associations.insert(association_id.clone(), association_info);
+        self.associations
+            .insert(association_id.clone(), association_info);
 
         Ok(association_id)
     }
@@ -75,8 +76,10 @@ impl AssociationManager {
     /// 关闭DICOM关联
     pub async fn close_association(&mut self, association_id: &str) -> Result<()> {
         if let Some(association) = self.associations.remove(association_id) {
-            info!("关闭DICOM关联: {} from {}",
-                  association.id, association.remote_addr);
+            info!(
+                "关闭DICOM关联: {} from {}",
+                association.id, association.remote_addr
+            );
         }
         Ok(())
     }

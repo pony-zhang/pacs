@@ -157,16 +157,23 @@ impl QueueConfig {
 
     /// 设置队列长度限制
     pub fn with_max_length(mut self, max_length: u32) -> Self {
-        self.arguments.insert("x-max-length".into(), max_length.into());
+        self.arguments
+            .insert("x-max-length".into(), max_length.into());
         self
     }
 
     /// 设置死信队列
     pub fn with_dead_letter_exchange(mut self, exchange: &str, routing_key: Option<&str>) -> Self {
         use lapin::types::AMQPValue;
-        self.arguments.insert("x-dead-letter-exchange".into(), AMQPValue::LongString(exchange.to_string()));
+        self.arguments.insert(
+            "x-dead-letter-exchange".into(),
+            AMQPValue::LongString(exchange.to_string()),
+        );
         if let Some(key) = routing_key {
-            self.arguments.insert("x-dead-letter-routing-key".into(), AMQPValue::LongString(key.to_string()));
+            self.arguments.insert(
+                "x-dead-letter-routing-key".into(),
+                AMQPValue::LongString(key.to_string()),
+            );
         }
         self
     }
@@ -199,11 +206,17 @@ impl MessagePublisher {
 
     /// 连接到消息队列
     pub async fn connect(&self) -> Result<()> {
-        let conn = Connection::connect(&self.config.url, ConnectionProperties::default().with_heartbeat(self.config.heartbeat)).await?;
+        let conn = Connection::connect(
+            &self.config.url,
+            ConnectionProperties::default().with_heartbeat(self.config.heartbeat),
+        )
+        .await?;
         let channel = conn.create_channel().await?;
 
         // 设置QoS
-        channel.basic_qos(self.config.prefetch_count, BasicQosOptions::default()).await?;
+        channel
+            .basic_qos(self.config.prefetch_count, BasicQosOptions::default())
+            .await?;
 
         let mut channel_lock = self.channel.write().await;
         *channel_lock = Some(channel);
@@ -213,7 +226,12 @@ impl MessagePublisher {
     }
 
     /// 发布消息
-    pub async fn publish(&self, exchange: &str, routing_key: &str, message: &Message) -> Result<()> {
+    pub async fn publish(
+        &self,
+        exchange: &str,
+        routing_key: &str,
+        message: &Message,
+    ) -> Result<()> {
         let channel_lock = self.channel.read().await;
         if let Some(channel) = channel_lock.as_ref() {
             let payload = serde_json::to_vec(message)?;
@@ -238,11 +256,11 @@ impl MessagePublisher {
                 Confirmation::Ack(_) => {
                     debug!("Message published successfully: {}", message.id);
                     Ok(())
-                },
+                }
                 Confirmation::Nack(nack) => {
                     error!("Message publish rejected: {:?}", nack);
                     Err(anyhow::anyhow!("Message publish rejected"))
-                },
+                }
             }
         } else {
             Err(anyhow::anyhow!("Not connected to message queue"))
@@ -250,7 +268,11 @@ impl MessagePublisher {
     }
 
     /// 创建交换器
-    pub async fn declare_exchange(&self, exchange: &str, exchange_type: lapin::ExchangeKind) -> Result<()> {
+    pub async fn declare_exchange(
+        &self,
+        exchange: &str,
+        exchange_type: lapin::ExchangeKind,
+    ) -> Result<()> {
         let channel_lock = self.channel.read().await;
         if let Some(channel) = channel_lock.as_ref() {
             channel
@@ -296,11 +318,17 @@ impl MessageSubscriber {
 
     /// 连接到消息队列
     pub async fn connect(&self) -> Result<()> {
-        let conn = Connection::connect(&self.config.url, ConnectionProperties::default().with_heartbeat(self.config.heartbeat)).await?;
+        let conn = Connection::connect(
+            &self.config.url,
+            ConnectionProperties::default().with_heartbeat(self.config.heartbeat),
+        )
+        .await?;
         let channel = conn.create_channel().await?;
 
         // 设置QoS
-        channel.basic_qos(self.config.prefetch_count, BasicQosOptions::default()).await?;
+        channel
+            .basic_qos(self.config.prefetch_count, BasicQosOptions::default())
+            .await?;
 
         let mut channel_lock = self.channel.write().await;
         *channel_lock = Some(channel);
@@ -340,7 +368,12 @@ impl MessageSubscriber {
     }
 
     /// 绑定队列到交换器
-    pub async fn bind_queue(&self, queue_name: &str, exchange: &str, routing_key: &str) -> Result<()> {
+    pub async fn bind_queue(
+        &self,
+        queue_name: &str,
+        exchange: &str,
+        routing_key: &str,
+    ) -> Result<()> {
         let channel_lock = self.channel.read().await;
         if let Some(channel) = channel_lock.as_ref() {
             channel
@@ -352,7 +385,10 @@ impl MessageSubscriber {
                     FieldTable::default(),
                 )
                 .await?;
-            info!("Queue {} bound to {} with routing key {}", queue_name, exchange, routing_key);
+            info!(
+                "Queue {} bound to {} with routing key {}",
+                queue_name, exchange, routing_key
+            );
             Ok(())
         } else {
             Err(anyhow::anyhow!("Not connected to message queue"))
@@ -383,26 +419,44 @@ impl MessageSubscriber {
                             Ok(_) => {
                                 // 消息处理成功，发送ACK
                                 delivery.ack(BasicAckOptions::default()).await?;
-                            },
+                            }
                             Err(e) => {
                                 error!("Failed to process message: {}", e);
                                 // 检查是否可以重试
                                 if let Ok(message_str) = std::str::from_utf8(&delivery.data) {
-                                    if let Ok(mut message) = serde_json::from_str::<Message>(message_str) {
+                                    if let Ok(mut message) =
+                                        serde_json::from_str::<Message>(message_str)
+                                    {
                                         if message.increment_retry() {
                                             // 可以重试，重新入队
-                                            warn!("Message retry {}/{}: {}", message.retry_count, message.max_retries, message.id);
-                                            delivery.nack(BasicNackOptions::default().requeue(true)).await?;
+                                            warn!(
+                                                "Message retry {}/{}: {}",
+                                                message.retry_count,
+                                                message.max_retries,
+                                                message.id
+                                            );
+                                            delivery
+                                                .nack(BasicNackOptions::default().requeue(true))
+                                                .await?;
                                         } else {
                                             // 超过最大重试次数，拒绝并丢弃
-                                            error!("Message max retries exceeded, dropping: {}", message.id);
-                                            delivery.nack(BasicNackOptions::default().requeue(false)).await?;
+                                            error!(
+                                                "Message max retries exceeded, dropping: {}",
+                                                message.id
+                                            );
+                                            delivery
+                                                .nack(BasicNackOptions::default().requeue(false))
+                                                .await?;
                                         }
                                     } else {
-                                        delivery.nack(BasicNackOptions::default().requeue(false)).await?;
+                                        delivery
+                                            .nack(BasicNackOptions::default().requeue(false))
+                                            .await?;
                                     }
                                 } else {
-                                    delivery.nack(BasicNackOptions::default().requeue(false)).await?;
+                                    delivery
+                                        .nack(BasicNackOptions::default().requeue(false))
+                                        .await?;
                                 }
                             }
                         }
@@ -425,7 +479,11 @@ impl MessageSubscriber {
         let message_str = std::str::from_utf8(&delivery.data)?;
         let message: Message = serde_json::from_str(message_str)?;
 
-        debug!("Processing message: {} ({})", message.id, message.message_type.as_str());
+        debug!(
+            "Processing message: {} ({})",
+            message.id,
+            message.message_type.as_str()
+        );
 
         // 根据消息类型找到对应的处理器
         let handler_name = match message.message_type {
@@ -443,7 +501,10 @@ impl MessageSubscriber {
         let handlers_lock = handlers.read().await;
         if let Some(handler) = handlers_lock.get(handler_name) {
             handler.handle_message(&message).await?;
-            debug!("Message processed successfully by handler: {}", handler_name);
+            debug!(
+                "Message processed successfully by handler: {}",
+                handler_name
+            );
         } else {
             warn!("No handler found for message type: {}", handler_name);
         }
@@ -476,9 +537,15 @@ impl DefaultMessageHandler {
 #[async_trait::async_trait]
 impl MessageHandler for DefaultMessageHandler {
     async fn handle_message(&self, message: &Message) -> Result<()> {
-        info!("Handling message {} with handler: {}", message.id, self.name);
+        info!(
+            "Handling message {} with handler: {}",
+            message.id, self.name
+        );
         // 默认实现只是记录消息
-        debug!("Message data: {}", serde_json::to_string_pretty(&message.data)?);
+        debug!(
+            "Message data: {}",
+            serde_json::to_string_pretty(&message.data)?
+        );
         Ok(())
     }
 

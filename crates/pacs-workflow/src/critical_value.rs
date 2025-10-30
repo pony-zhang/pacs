@@ -2,7 +2,7 @@
 //!
 //! 确保紧急情况能够及时通知相关人员
 
-use pacs_core::{Result, PacsError};
+use pacs_core::{PacsError, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -10,10 +10,10 @@ use uuid::Uuid;
 /// 危急值类型
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum CriticalValueType {
-    LifeThreatening,    // 威胁生命
-    Emergency,          // 紧急
-    Urgent,             // 急诊
-    Critical,           // 危重
+    LifeThreatening, // 威胁生命
+    Emergency,       // 紧急
+    Urgent,          // 急诊
+    Critical,        // 危重
 }
 
 /// 危急值事件
@@ -33,20 +33,20 @@ pub struct CriticalValueEvent {
 /// 危急值严重程度
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub enum CriticalSeverity {
-    Low,        // 低
-    Medium,     // 中
-    High,       // 高
-    Critical,   // 危重
+    Low,      // 低
+    Medium,   // 中
+    High,     // 高
+    Critical, // 危重
 }
 
 /// 通知方式
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum NotificationMethod {
-    InApp,          // 应用内通知
-    Email,          // 邮件
-    SMS,            // 短信
-    PhoneCall,      // 电话
-    Pager,          // 寻呼机
+    InApp,     // 应用内通知
+    Email,     // 邮件
+    SMS,       // 短信
+    PhoneCall, // 电话
+    Pager,     // 寻呼机
 }
 
 /// 通知记录
@@ -65,12 +65,12 @@ pub struct NotificationRecord {
 /// 通知状态
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum NotificationStatus {
-    Pending,     // 待发送
-    Sent,        // 已发送
-    Delivered,   // 已送达
-    Read,        // 已读
-    Acknowledged,// 已确认
-    Failed,      // 发送失败
+    Pending,      // 待发送
+    Sent,         // 已发送
+    Delivered,    // 已送达
+    Read,         // 已读
+    Acknowledged, // 已确认
+    Failed,       // 发送失败
 }
 
 /// 危急值处理策略
@@ -105,31 +105,31 @@ pub struct EscalationRule {
 /// 升级条件
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum EscalationCondition {
-    NotAcknowledged,         // 未确认
-    NotDelivered,           // 未送达
-    NoResponse,             // 无响应
-    RecipientUnavailable,   // 接收者不可用
+    NotAcknowledged,      // 未确认
+    NotDelivered,         // 未送达
+    NoResponse,           // 无响应
+    RecipientUnavailable, // 接收者不可用
 }
 
 /// 升级动作
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum EscalationAction {
-    NotifyBackupRecipient,  // 通知备用接收者
-    IncreaseSeverity,       // 提高严重程度
-    AddNotificationMethod,  // 添加通知方式
+    NotifyBackupRecipient, // 通知备用接收者
+    IncreaseSeverity,      // 提高严重程度
+    AddNotificationMethod, // 添加通知方式
     NotifyAdmin,           // 通知管理员
 }
 
 /// 接收者类型
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum RecipientType {
-    ReferringPhysician,     // 开单医生
-    PrimaryRadiologist,     // 主要放射科医生
-    DepartmentHead,         // 科室主任
-    EmergencyRoom,          // 急诊科
-    BackupRadiologist,      // 备用放射科医生
-    SystemAdmin,           // 系统管理员
-    SpecificUser(Uuid),     // 特定用户
+    ReferringPhysician, // 开单医生
+    PrimaryRadiologist, // 主要放射科医生
+    DepartmentHead,     // 科室主任
+    EmergencyRoom,      // 急诊科
+    BackupRadiologist,  // 备用放射科医生
+    SystemAdmin,        // 系统管理员
+    SpecificUser(Uuid), // 特定用户
 }
 
 /// 危急值处理器
@@ -183,7 +183,11 @@ impl CriticalValueProcessor {
         let event_id = event.id;
         self.events.insert(event_id, event.clone());
 
-        tracing::warn!("Critical value event created: {} for study {}", event_id, study_id);
+        tracing::warn!(
+            "Critical value event created: {} for study {}",
+            event_id,
+            study_id
+        );
 
         // 立即开始处理通知
         self.process_critical_value_event(&event)?;
@@ -194,14 +198,18 @@ impl CriticalValueProcessor {
     /// 处理危急值事件
     fn process_critical_value_event(&mut self, event: &CriticalValueEvent) -> Result<()> {
         // 找到匹配的策略
-        let matching_policies: Vec<CriticalValuePolicy> = self.policies
+        let matching_policies: Vec<CriticalValuePolicy> = self
+            .policies
             .iter()
             .filter(|policy| policy.is_active && policy.value_types.contains(&event.value_type))
             .cloned()
             .collect();
 
         if matching_policies.is_empty() {
-            tracing::warn!("No matching policy found for critical value event {}", event.id);
+            tracing::warn!(
+                "No matching policy found for critical value event {}",
+                event.id
+            );
             return Ok(());
         }
 
@@ -216,12 +224,19 @@ impl CriticalValueProcessor {
     }
 
     /// 创建通知
-    fn create_notification(&mut self, event: &CriticalValueEvent, rule: &NotificationRule) -> Result<()> {
+    fn create_notification(
+        &mut self,
+        event: &CriticalValueEvent,
+        rule: &NotificationRule,
+    ) -> Result<()> {
         let recipient_id = match &rule.recipient_type {
             RecipientType::SpecificUser(id) => Some(*id),
             // TODO: 其他接收者类型需要查询相关数据库
             _ => {
-                tracing::warn!("Recipient type {:?} not implemented yet", rule.recipient_type);
+                tracing::warn!(
+                    "Recipient type {:?} not implemented yet",
+                    rule.recipient_type
+                );
                 return Ok(());
             }
         };
@@ -293,15 +308,24 @@ impl CriticalValueProcessor {
         match notification.method {
             NotificationMethod::InApp => {
                 // 应用内通知逻辑
-                tracing::info!("Sending in-app notification to user {}", notification.recipient_id);
+                tracing::info!(
+                    "Sending in-app notification to user {}",
+                    notification.recipient_id
+                );
             }
             NotificationMethod::Email => {
                 // 邮件通知逻辑
-                tracing::info!("Sending email notification to user {}", notification.recipient_id);
+                tracing::info!(
+                    "Sending email notification to user {}",
+                    notification.recipient_id
+                );
             }
             NotificationMethod::SMS => {
                 // 短信通知逻辑
-                tracing::info!("Sending SMS notification to user {}", notification.recipient_id);
+                tracing::info!(
+                    "Sending SMS notification to user {}",
+                    notification.recipient_id
+                );
             }
             NotificationMethod::PhoneCall => {
                 // 电话通知逻辑
@@ -309,7 +333,10 @@ impl CriticalValueProcessor {
             }
             NotificationMethod::Pager => {
                 // 寻呼机通知逻辑
-                tracing::info!("Sending pager notification to user {}", notification.recipient_id);
+                tracing::info!(
+                    "Sending pager notification to user {}",
+                    notification.recipient_id
+                );
             }
         }
 
@@ -325,13 +352,20 @@ impl CriticalValueProcessor {
             for notification in notifications {
                 if notification.recipient_id == user_id {
                     notification.status = NotificationStatus::Acknowledged;
-                    tracing::info!("Critical value {} acknowledged by user {}", event_id, user_id);
+                    tracing::info!(
+                        "Critical value {} acknowledged by user {}",
+                        event_id,
+                        user_id
+                    );
                     return Ok(());
                 }
             }
         }
 
-        Err(PacsError::NotFound(format!("No notification found for user {} in event {}", user_id, event_id)))
+        Err(PacsError::NotFound(format!(
+            "No notification found for user {} in event {}",
+            user_id, event_id
+        )))
     }
 
     /// 获取危急值事件
@@ -350,7 +384,9 @@ impl CriticalValueProcessor {
             .values()
             .filter(|event| {
                 if let Some(notifications) = self.notifications.get(&event.id) {
-                    !notifications.iter().any(|n| matches!(n.status, NotificationStatus::Acknowledged))
+                    !notifications
+                        .iter()
+                        .any(|n| matches!(n.status, NotificationStatus::Acknowledged))
                 } else {
                     true
                 }
@@ -397,17 +433,28 @@ impl CriticalValueProcessor {
     }
 
     /// 判断是否需要升级
-    fn should_escalate(&self, notifications: &[NotificationRecord], condition: &EscalationCondition) -> bool {
+    fn should_escalate(
+        &self,
+        notifications: &[NotificationRecord],
+        condition: &EscalationCondition,
+    ) -> bool {
         match condition {
-            EscalationCondition::NotAcknowledged => {
-                !notifications.iter().any(|n| matches!(n.status, NotificationStatus::Acknowledged))
-            }
-            EscalationCondition::NotDelivered => {
-                !notifications.iter().any(|n| matches!(n.status, NotificationStatus::Delivered | NotificationStatus::Read | NotificationStatus::Acknowledged))
-            }
+            EscalationCondition::NotAcknowledged => !notifications
+                .iter()
+                .any(|n| matches!(n.status, NotificationStatus::Acknowledged)),
+            EscalationCondition::NotDelivered => !notifications.iter().any(|n| {
+                matches!(
+                    n.status,
+                    NotificationStatus::Delivered
+                        | NotificationStatus::Read
+                        | NotificationStatus::Acknowledged
+                )
+            }),
             EscalationCondition::NoResponse => {
                 // TODO: 实现更复杂的响应检测逻辑
-                notifications.iter().all(|n| matches!(n.status, NotificationStatus::Sent))
+                notifications
+                    .iter()
+                    .all(|n| matches!(n.status, NotificationStatus::Sent))
             }
             EscalationCondition::RecipientUnavailable => {
                 // TODO: 实现接收者可用性检查

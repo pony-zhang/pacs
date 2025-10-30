@@ -1,8 +1,8 @@
 //! 数据库查询操作
 
-use crate::models::*;
 use crate::connection::DatabasePool;
-use pacs_core::{PacsError, Result, Patient, Study, Series, Instance, Sex, StudyStatus};
+use crate::models::*;
+use pacs_core::{Instance, PacsError, Patient, Result, Series, Sex, Study, StudyStatus};
 use sqlx::Row;
 use uuid::Uuid;
 
@@ -21,7 +21,8 @@ impl<'a> DatabaseQueries<'a> {
         let pool = self.pool.pool();
 
         // 创建患者表
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             CREATE TABLE IF NOT EXISTS patients (
                 id UUID PRIMARY KEY,
                 patient_id VARCHAR(64) UNIQUE NOT NULL,
@@ -31,10 +32,15 @@ impl<'a> DatabaseQueries<'a> {
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
                 updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
             )
-        "#).execute(pool).await.map_err(|e| PacsError::Database(e.to_string()))?;
+        "#,
+        )
+        .execute(pool)
+        .await
+        .map_err(|e| PacsError::Database(e.to_string()))?;
 
         // 创建检查表
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             CREATE TABLE IF NOT EXISTS studies (
                 id UUID PRIMARY KEY,
                 study_uid VARCHAR(64) UNIQUE NOT NULL,
@@ -48,10 +54,15 @@ impl<'a> DatabaseQueries<'a> {
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
                 updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
             )
-        "#).execute(pool).await.map_err(|e| PacsError::Database(e.to_string()))?;
+        "#,
+        )
+        .execute(pool)
+        .await
+        .map_err(|e| PacsError::Database(e.to_string()))?;
 
         // 创建系列表
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             CREATE TABLE IF NOT EXISTS series (
                 id UUID PRIMARY KEY,
                 series_uid VARCHAR(64) UNIQUE NOT NULL,
@@ -62,10 +73,15 @@ impl<'a> DatabaseQueries<'a> {
                 images_count INTEGER DEFAULT 0,
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
             )
-        "#).execute(pool).await.map_err(|e| PacsError::Database(e.to_string()))?;
+        "#,
+        )
+        .execute(pool)
+        .await
+        .map_err(|e| PacsError::Database(e.to_string()))?;
 
         // 创建实例表
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             CREATE TABLE IF NOT EXISTS instances (
                 id UUID PRIMARY KEY,
                 sop_instance_uid VARCHAR(64) UNIQUE NOT NULL,
@@ -76,7 +92,11 @@ impl<'a> DatabaseQueries<'a> {
                 transfer_syntax_uid VARCHAR(64) NOT NULL,
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
             )
-        "#).execute(pool).await.map_err(|e| PacsError::Database(e.to_string()))?;
+        "#,
+        )
+        .execute(pool)
+        .await
+        .map_err(|e| PacsError::Database(e.to_string()))?;
 
         // 创建索引以优化查询性能
         self.create_indexes().await?;
@@ -126,11 +146,13 @@ impl<'a> DatabaseQueries<'a> {
             Sex::Other => "O",
         });
 
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             INSERT INTO patients (id, patient_id, name, sex, birth_date)
             VALUES ($1, $2, $3, $4, $5)
             RETURNING id
-        "#)
+        "#,
+        )
         .bind(patient.id)
         .bind(&patient.patient_id)
         .bind(&patient.name)
@@ -146,13 +168,11 @@ impl<'a> DatabaseQueries<'a> {
     pub async fn get_patient_by_id(&self, id: &Uuid) -> Result<Option<Patient>> {
         let pool = self.pool.pool();
 
-        let result = sqlx::query_as::<_, DbPatient>(
-            "SELECT * FROM patients WHERE id = $1"
-        )
-        .bind(id)
-        .fetch_optional(pool)
-        .await
-        .map_err(|e| PacsError::Database(e.to_string()))?;
+        let result = sqlx::query_as::<_, DbPatient>("SELECT * FROM patients WHERE id = $1")
+            .bind(id)
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| PacsError::Database(e.to_string()))?;
 
         Ok(result.map(|db_patient| Patient::from(db_patient)))
     }
@@ -161,13 +181,11 @@ impl<'a> DatabaseQueries<'a> {
     pub async fn get_patient_by_patient_id(&self, patient_id: &str) -> Result<Option<Patient>> {
         let pool = self.pool.pool();
 
-        let result = sqlx::query_as::<_, DbPatient>(
-            "SELECT * FROM patients WHERE patient_id = $1"
-        )
-        .bind(patient_id)
-        .fetch_optional(pool)
-        .await
-        .map_err(|e| PacsError::Database(e.to_string()))?;
+        let result = sqlx::query_as::<_, DbPatient>("SELECT * FROM patients WHERE patient_id = $1")
+            .bind(patient_id)
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| PacsError::Database(e.to_string()))?;
 
         Ok(result.map(|db_patient| Patient::from(db_patient)))
     }
@@ -177,7 +195,7 @@ impl<'a> DatabaseQueries<'a> {
         let pool = self.pool.pool();
 
         let results = sqlx::query_as::<_, DbPatient>(
-            "SELECT * FROM patients WHERE name ILIKE $1 ORDER BY updated_at DESC LIMIT $2"
+            "SELECT * FROM patients WHERE name ILIKE $1 ORDER BY updated_at DESC LIMIT $2",
         )
         .bind(format!("%{}%", name))
         .bind(limit)
@@ -227,13 +245,11 @@ impl<'a> DatabaseQueries<'a> {
     pub async fn get_study_by_uid(&self, study_uid: &str) -> Result<Option<Study>> {
         let pool = self.pool.pool();
 
-        let result = sqlx::query_as::<_, DbStudy>(
-            "SELECT * FROM studies WHERE study_uid = $1"
-        )
-        .bind(study_uid)
-        .fetch_optional(pool)
-        .await
-        .map_err(|e| PacsError::Database(e.to_string()))?;
+        let result = sqlx::query_as::<_, DbStudy>("SELECT * FROM studies WHERE study_uid = $1")
+            .bind(study_uid)
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| PacsError::Database(e.to_string()))?;
 
         Ok(result.map(|db_study| Study::from(db_study)))
     }
@@ -243,7 +259,7 @@ impl<'a> DatabaseQueries<'a> {
         let pool = self.pool.pool();
 
         let results = sqlx::query_as::<_, DbStudy>(
-            "SELECT * FROM studies WHERE patient_id = $1 ORDER BY study_date DESC, study_time DESC"
+            "SELECT * FROM studies WHERE patient_id = $1 ORDER BY study_date DESC, study_time DESC",
         )
         .bind(patient_id)
         .fetch_all(pool)
@@ -254,16 +270,18 @@ impl<'a> DatabaseQueries<'a> {
     }
 
     /// 根据检查号查找检查
-    pub async fn get_study_by_accession_number(&self, accession_number: &str) -> Result<Option<Study>> {
+    pub async fn get_study_by_accession_number(
+        &self,
+        accession_number: &str,
+    ) -> Result<Option<Study>> {
         let pool = self.pool.pool();
 
-        let result = sqlx::query_as::<_, DbStudy>(
-            "SELECT * FROM studies WHERE accession_number = $1"
-        )
-        .bind(accession_number)
-        .fetch_optional(pool)
-        .await
-        .map_err(|e| PacsError::Database(e.to_string()))?;
+        let result =
+            sqlx::query_as::<_, DbStudy>("SELECT * FROM studies WHERE accession_number = $1")
+                .bind(accession_number)
+                .fetch_optional(pool)
+                .await
+                .map_err(|e| PacsError::Database(e.to_string()))?;
 
         Ok(result.map(|db_study| Study::from(db_study)))
     }
@@ -296,13 +314,11 @@ impl<'a> DatabaseQueries<'a> {
     pub async fn get_series_by_uid(&self, series_uid: &str) -> Result<Option<Series>> {
         let pool = self.pool.pool();
 
-        let result = sqlx::query_as::<_, DbSeries>(
-            "SELECT * FROM series WHERE series_uid = $1"
-        )
-        .bind(series_uid)
-        .fetch_optional(pool)
-        .await
-        .map_err(|e| PacsError::Database(e.to_string()))?;
+        let result = sqlx::query_as::<_, DbSeries>("SELECT * FROM series WHERE series_uid = $1")
+            .bind(series_uid)
+            .fetch_optional(pool)
+            .await
+            .map_err(|e| PacsError::Database(e.to_string()))?;
 
         Ok(result.map(|db_series| Series::from(db_series)))
     }
@@ -312,7 +328,7 @@ impl<'a> DatabaseQueries<'a> {
         let pool = self.pool.pool();
 
         let results = sqlx::query_as::<_, DbSeries>(
-            "SELECT * FROM series WHERE study_id = $1 ORDER BY series_number"
+            "SELECT * FROM series WHERE study_id = $1 ORDER BY series_number",
         )
         .bind(study_id)
         .fetch_all(pool)
@@ -350,13 +366,12 @@ impl<'a> DatabaseQueries<'a> {
     pub async fn get_instance_by_uid(&self, sop_instance_uid: &str) -> Result<Option<Instance>> {
         let pool = self.pool.pool();
 
-        let result = sqlx::query_as::<_, DbInstance>(
-            "SELECT * FROM instances WHERE sop_instance_uid = $1"
-        )
-        .bind(sop_instance_uid)
-        .fetch_optional(pool)
-        .await
-        .map_err(|e| PacsError::Database(e.to_string()))?;
+        let result =
+            sqlx::query_as::<_, DbInstance>("SELECT * FROM instances WHERE sop_instance_uid = $1")
+                .bind(sop_instance_uid)
+                .fetch_optional(pool)
+                .await
+                .map_err(|e| PacsError::Database(e.to_string()))?;
 
         Ok(result.map(|db_instance| Instance::from(db_instance)))
     }
@@ -366,7 +381,7 @@ impl<'a> DatabaseQueries<'a> {
         let pool = self.pool.pool();
 
         let results = sqlx::query_as::<_, DbInstance>(
-            "SELECT * FROM instances WHERE series_id = $1 ORDER BY instance_number"
+            "SELECT * FROM instances WHERE series_id = $1 ORDER BY instance_number",
         )
         .bind(series_id)
         .fetch_all(pool)
@@ -380,14 +395,12 @@ impl<'a> DatabaseQueries<'a> {
     pub async fn update_series_images_count(&self, series_id: &Uuid, count: i32) -> Result<()> {
         let pool = self.pool.pool();
 
-        sqlx::query(
-            "UPDATE series SET images_count = $1 WHERE id = $2"
-        )
-        .bind(count)
-        .bind(series_id)
-        .execute(pool)
-        .await
-        .map_err(|e| PacsError::Database(e.to_string()))?;
+        sqlx::query("UPDATE series SET images_count = $1 WHERE id = $2")
+            .bind(count)
+            .bind(series_id)
+            .execute(pool)
+            .await
+            .map_err(|e| PacsError::Database(e.to_string()))?;
 
         Ok(())
     }

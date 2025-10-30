@@ -2,7 +2,7 @@
 //!
 //! 管理影像检查的完整生命周期状态转换
 
-use pacs_core::{Result, PacsError, StudyStatus};
+use pacs_core::{PacsError, Result, StudyStatus};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -37,19 +37,38 @@ impl StudyStateMachine {
         let mut transitions = HashMap::new();
 
         // 定义状态转换规则
-        transitions.insert((StudyStatus::Scheduled, StudyEvent::Started), StudyStatus::InProgress);
-        transitions.insert((StudyStatus::InProgress, StudyEvent::Completed), StudyStatus::Completed);
-        transitions.insert((StudyStatus::Completed, StudyEvent::PreliminaryReport), StudyStatus::Preliminary);
-        transitions.insert((StudyStatus::Preliminary, StudyEvent::FinalReport), StudyStatus::Final);
-        transitions.insert((StudyStatus::Scheduled, StudyEvent::Canceled), StudyStatus::Canceled);
-        transitions.insert((StudyStatus::InProgress, StudyEvent::Canceled), StudyStatus::Canceled);
+        transitions.insert(
+            (StudyStatus::Scheduled, StudyEvent::Started),
+            StudyStatus::InProgress,
+        );
+        transitions.insert(
+            (StudyStatus::InProgress, StudyEvent::Completed),
+            StudyStatus::Completed,
+        );
+        transitions.insert(
+            (StudyStatus::Completed, StudyEvent::PreliminaryReport),
+            StudyStatus::Preliminary,
+        );
+        transitions.insert(
+            (StudyStatus::Preliminary, StudyEvent::FinalReport),
+            StudyStatus::Final,
+        );
+        transitions.insert(
+            (StudyStatus::Scheduled, StudyEvent::Canceled),
+            StudyStatus::Canceled,
+        );
+        transitions.insert(
+            (StudyStatus::InProgress, StudyEvent::Canceled),
+            StudyStatus::Canceled,
+        );
 
         Self { transitions }
     }
 
     /// 检查状态转换是否有效
     pub fn can_transition(&self, from: &StudyStatus, event: &StudyEvent) -> bool {
-        self.transitions.contains_key(&(from.clone(), event.clone()))
+        self.transitions
+            .contains_key(&(from.clone(), event.clone()))
     }
 
     /// 执行状态转换

@@ -43,7 +43,6 @@ pub struct SystemStatsResponse {
     pub active_worklists: u64,
 }
 
-
 /// API处理器
 pub struct ApiHandler;
 
@@ -91,7 +90,7 @@ impl ApiHandler {
                 let mut response = HashMap::new();
                 response.insert("subscription_id".to_string(), subscription_id);
                 Ok((StatusCode::CREATED, Json(response)))
-            },
+            }
             Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
         }
     }
@@ -106,14 +105,12 @@ pub fn create_api_routes() -> Router<ApiState> {
         .route("/health", get(ApiHandler::health_check))
         .route("/webhooks", post(ApiHandler::create_webhook))
         .with_state(api_state)
-        .layer(axum::middleware::from_fn(
-            |req, next| async move {
-                info!("API request: {} {}", req.method(), req.uri());
-                let response = next.run(req).await;
-                info!("API response: {}", response.status());
-                response
-            },
-        ))
+        .layer(axum::middleware::from_fn(|req, next| async move {
+            info!("API request: {} {}", req.method(), req.uri());
+            let response = next.run(req).await;
+            info!("API response: {}", response.status());
+            response
+        }))
 }
 
 /// API服务器
