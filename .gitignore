@@ -95,10 +95,6 @@ coverage/
 *.lcov
 tarpaulin-report.html
 
-# 文档生成产物
-doc/
-/docs/
-
 # 缓存目录
 .cache/
 .cache/

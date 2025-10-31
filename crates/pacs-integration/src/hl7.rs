@@ -9,11 +9,10 @@
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use thiserror::Error;
 use tracing::{debug, error, info, warn};
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Serialize, Deserialize)]
 pub enum Hl7Error {
     #[error("Invalid HL7 message format: {0}")]
     InvalidFormat(String),
@@ -26,7 +25,7 @@ pub enum Hl7Error {
 }
 
 /// HL7消息类型
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Hl7MessageType {
     ADT, // 患者管理
     ORM, // 检查申请
@@ -123,15 +122,15 @@ impl Hl7Parser {
 
         let lines: Vec<&str> = message.trim().split('\n').collect();
         if lines.is_empty() {
-            return Err(Hl7Error::InvalidFormat("Empty message".to_string()));
+            return Err(Hl7Error::InvalidFormat("Empty message".to_string()).into());
         }
 
         // 解析MSH段
         let msh_segment = self.parse_segment(lines[0])?;
         if msh_segment.segment_type != "MSH" {
-            return Err(Hl7Error::InvalidFormat(
-                "Message must start with MSH segment".to_string(),
-            ));
+            return Err(
+                Hl7Error::InvalidFormat("Message must start with MSH segment".to_string()).into(),
+            );
         }
 
         let message_type = self.extract_message_type(&msh_segment)?;
@@ -179,7 +178,7 @@ impl Hl7Parser {
     fn parse_segment(&self, line: &str) -> Result<Hl7Segment> {
         let parts: Vec<&str> = line.split(self.field_separator).collect();
         if parts.is_empty() {
-            return Err(Hl7Error::InvalidFormat("Empty segment".to_string()));
+            return Err(Hl7Error::InvalidFormat("Empty segment".to_string()).into());
         }
 
         let segment_type = parts[0].to_string();
@@ -213,12 +212,10 @@ impl Hl7Parser {
 
         let type_parts: Vec<&str> = msg_type.split(self.component_separator).collect();
         if type_parts.is_empty() {
-            return Err(Hl7Error::InvalidFormat(
-                "Invalid message type format".to_string(),
-            ));
+            return Err(Hl7Error::InvalidFormat("Invalid message type format".to_string()).into());
         }
 
-        Hl7MessageType::try_from(type_parts[0])
+        Hl7MessageType::try_from(type_parts[0]).map_err(Into::into)
     }
 
     /// 提取时间戳
@@ -258,9 +255,9 @@ impl Hl7Parser {
                 0
             };
 
-            chrono::Utc
-                .with_ymd_and_hms(year, month, day, hour, minute, second)
-                .single()
+            chrono::NaiveDate::from_ymd_opt(year, month, day)
+                .and_then(|date| date.and_hms_opt(hour, minute, second))
+                .map(|naive_dt| DateTime::from_naive_utc_and_offset(naive_dt, Utc))
                 .ok_or_else(|| Hl7Error::ParseError("Invalid datetime".to_string()))?
         } else {
             chrono::Utc::now()
@@ -434,12 +431,12 @@ impl Hl7Parser {
                 0
             };
 
-            chrono::Utc
-                .with_ymd_and_hms(year, month, day, hour, minute, second)
-                .single()
-                .ok_or_else(|| Hl7Error::ParseError("Invalid datetime".to_string()))
+            Ok(chrono::NaiveDate::from_ymd_opt(year, month, day)
+                .and_then(|date| date.and_hms_opt(hour, minute, second))
+                .map(|naive_dt| DateTime::from_naive_utc_and_offset(naive_dt, Utc))
+                .ok_or_else(|| Hl7Error::ParseError("Invalid datetime".to_string()))?)
         } else {
-            Err(Hl7Error::ParseError("Datetime too short".to_string()))
+            Err(Hl7Error::ParseError("Datetime too short".to_string()).into())
         }
     }
 }
